@@ -2,10 +2,6 @@
 
 set -e
 
-# Call like this:
-# find . -iname "*.jpg" -print0 | xargs -0 -n1 ~/Schreibtisch/convert.sh
-# Parameter is a relative filename, e.g. "./2019-02-27/20190228_093031.jpg"
-
 CONVERTED_FOLDER=~/Schreibtisch/converted
 
 DIRNAME=`dirname "$1"`
