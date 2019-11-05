@@ -3,14 +3,14 @@
 set -e
 
 # Call like this:
-# find . -name "*.jpg" -print0 | xargs -0 -n1 ~/Schreibtisch/convert.sh
+# find . -iname "*.jpg" -print0 | xargs -0 -n1 ~/Schreibtisch/convert.sh
 # Parameter is a relative filename, e.g. "./2019-02-27/20190228_093031.jpg"
 
 CONVERTED_FOLDER=~/Schreibtisch/converted
 
 DIRNAME=`dirname "$1"`
 TARGET_FOLDER="$CONVERTED_FOLDER/$DIRNAME"
-TARGET_FILENAME="$CONVERTED_FOLDER/${1/.jpg/.webp}"
+TARGET_FILENAME="$CONVERTED_FOLDER/${1%.*}.webp"
 mkdir -p "$TARGET_FOLDER"
 echo "$TARGET_FILENAME"
 
