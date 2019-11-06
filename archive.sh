@@ -3,8 +3,8 @@
 set -e
 
 ARCHIVE_SCRIPT_DIRECTORY="${PWD}"
-SOURCE_FOLDER=$(realpath $1)
-TARGET_FOLDER=$(realpath $2)
+SOURCE_FOLDER=$(realpath "$1")
+TARGET_FOLDER=$(realpath "$2")
 
 echo "Source folder: ${SOURCE_FOLDER}"
 echo "Target folder: ${TARGET_FOLDER}"
