@@ -19,7 +19,7 @@ function convertImage {
 
   if [ ! -f "${TARGET_FILENAME}" ]; then
     echo "Archiving ${SOURCE_FILENAME}"
-    ${ARCHIVE_SCRIPT_DIRECTORY}/image.sh ${SOURCE_FILENAME} ${TARGET_FILENAME}
+    ${ARCHIVE_SCRIPT_DIRECTORY}/image.sh "${SOURCE_FILENAME}" "${TARGET_FILENAME}"
   else
     echo "Skipping ${SOURCE_FILENAME}"
   fi
@@ -31,4 +31,6 @@ export TARGET_FOLDER
 export -f convertImage
 
 cd ${SOURCE_FOLDER}
-find . -iname "*.jpg" -exec bash -c 'convertImage "$0"' {} \;
+find . -iname "*.jpg" -print0 | xargs -0 -n1 -P 32 bash -c 'convertImage "$0"'
+find . -iname "*.jpeg" -print0 | xargs -0 -n1 -P 32 bash -c 'convertImage "$0"'
+find . -iname "*.png" -print0 | xargs -0 -n1 -P 32 bash -c 'convertImage "$0"'
