@@ -9,7 +9,7 @@ In order to get a lot of data on a disc, I've decided I don't need 24 megapixel 
 So this script will re-encode your files to:
 
 - Images
-  - WebP file format
+  - HEIF file format (HEIC / HEVC)
   - Scaled to 1920x1080
 - Videos
   - MP4 container, H.265 codec for video, AAC for audio

@@ -33,6 +33,6 @@ export -f convertFile
 
 cd "${SOURCE_FOLDER}"
 
-find . -iregex ".*\.\(jpg\|jpeg\|png\|gif\)$" -print0 | xargs -0 -n1 -P 32 bash -c 'convertFile "$0" ./image.sh webp'
+find . -iregex ".*\.\(jpg\|jpeg\|png\|gif\)$" -print0 | xargs -0 -n1 -P 32 bash -c 'convertFile "$0" ./image.sh heic'
 find . -iregex ".*\.\(mp3\|m4a\|opus\)$" -print0 | xargs -0 -n1 -P 32 bash -c 'convertFile "$0" ./audio.sh opus'
 find . -iregex ".*\.\(mp4\|mov\)$" -print0 | xargs -0 -n1 bash -c 'convertFile "$0" ./video.sh mp4'
