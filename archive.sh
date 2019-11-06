@@ -25,22 +25,12 @@ function convertFile {
   fi
 }
 
-function convertImage {
-  convertFile "$1" ./image.sh webp
-}
-
-function convertVideo {
-  convertFile "$1" ./video.sh mp4
-}
-
 export ARCHIVE_SCRIPT_DIRECTORY
 export SOURCE_FOLDER
 export TARGET_FOLDER
 export -f convertFile
-export -f convertImage
-export -f convertVideo
 
 cd ${SOURCE_FOLDER}
 
-find . -iregex ".*\.\(jpg\|jpeg\|png\)$" -print0 | xargs -0 -n1 -P 32 bash -c 'convertImage "$0"'
-find . -iregex ".*\.\(mp4\|mov\)$" -print0 | xargs -0 -n1 -P 32 bash -c 'convertVideo "$0"'
+find . -iregex ".*\.\(jpg\|jpeg\|png\)$" -print0 | xargs -0 -n1 -P 32 bash -c 'convertFile "$0" ./image.sh webp'
+find . -iregex ".*\.\(mp4\|mov\)$" -print0 | xargs -0 -n1 -P 32 bash -c 'convertFile "$0" ./video.sh mp4'
