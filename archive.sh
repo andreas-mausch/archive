@@ -9,9 +9,9 @@ TARGET_FOLDER=$(realpath $2)
 echo "Source folder: ${SOURCE_FOLDER}"
 echo "Target folder: ${TARGET_FOLDER}"
 
-function convertImage {
+function convertFile {
   SOURCE_FILENAME="${SOURCE_FOLDER}/${1}"
-  TARGET_FILENAME="${TARGET_FOLDER}/${1%.*}.webp"
+  TARGET_FILENAME="${TARGET_FOLDER}/${1%.*}.${3}"
 
   TARGET_DIRNAME=`dirname "${1}"`
   TARGET_FILENAME_FOLDER="${TARGET_FOLDER}/${TARGET_DIRNAME}"
@@ -19,15 +19,20 @@ function convertImage {
 
   if [ ! -f "${TARGET_FILENAME}" ]; then
     echo "Archiving ${SOURCE_FILENAME}"
-    ${ARCHIVE_SCRIPT_DIRECTORY}/image.sh "${SOURCE_FILENAME}" "${TARGET_FILENAME}"
+    ${ARCHIVE_SCRIPT_DIRECTORY}/${2} "${SOURCE_FILENAME}" "${TARGET_FILENAME}"
   else
     echo "Skipping ${SOURCE_FILENAME}"
   fi
 }
 
+function convertImage {
+  convertFile "$1" ./image.sh webp
+}
+
 export ARCHIVE_SCRIPT_DIRECTORY
 export SOURCE_FOLDER
 export TARGET_FOLDER
+export -f convertFile
 export -f convertImage
 
 cd ${SOURCE_FOLDER}
