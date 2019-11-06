@@ -42,9 +42,5 @@ export -f convertVideo
 
 cd ${SOURCE_FOLDER}
 
-find . -iname "*.jpg" -print0 | xargs -0 -n1 -P 32 bash -c 'convertImage "$0"'
-find . -iname "*.jpeg" -print0 | xargs -0 -n1 -P 32 bash -c 'convertImage "$0"'
-find . -iname "*.png" -print0 | xargs -0 -n1 -P 32 bash -c 'convertImage "$0"'
-
-find . -iname "*.mp4" -print0 | xargs -0 -n1 -P 32 bash -c 'convertVideo "$0"'
-find . -iname "*.mov" -print0 | xargs -0 -n1 -P 32 bash -c 'convertVideo "$0"'
+find . -iregex ".*\.\(jpg\|jpeg\|png\)$" -print0 | xargs -0 -n1 -P 32 bash -c 'convertImage "$0"'
+find . -iregex ".*\.\(mp4\|mov\)$" -print0 | xargs -0 -n1 -P 32 bash -c 'convertVideo "$0"'
