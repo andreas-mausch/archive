@@ -20,6 +20,7 @@ function convertFile {
   if [ ! -f "${TARGET_FILENAME}" ]; then
     echo "Archiving ${SOURCE_FILENAME}"
     ${ARCHIVE_SCRIPT_DIRECTORY}/${2} "${SOURCE_FILENAME}" "${TARGET_FILENAME}"
+    touch -r "${SOURCE_FILENAME}" "${TARGET_FILENAME}"
   else
     echo "Skipping ${SOURCE_FILENAME}"
   fi
