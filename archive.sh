@@ -30,7 +30,7 @@ export SOURCE_FOLDER
 export TARGET_FOLDER
 export -f convertFile
 
-cd ${SOURCE_FOLDER}
+cd "${SOURCE_FOLDER}"
 
 find . -iregex ".*\.\(jpg\|jpeg\|png\|gif\)$" -print0 | xargs -0 -n1 -P 32 bash -c 'convertFile "$0" ./image.sh webp'
 find . -iregex ".*\.\(mp4\|mov\)$" -print0 | xargs -0 -n1 -P 32 bash -c 'convertFile "$0" ./video.sh mp4'
