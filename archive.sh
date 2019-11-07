@@ -30,7 +30,7 @@ function convertFile {
 function fileExists {
   TARGET_FILENAME="${TARGET_FOLDER}/${1%.*}"
 
-  if [ -f "${TARGET_FILENAME}" ]; then
+  if ! ls "${TARGET_FILENAME}".* 1> /dev/null 2>&1; then
     echo "File not copied: ${SOURCE_FOLDER}/${1}"
   fi
 }

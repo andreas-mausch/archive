@@ -22,7 +22,7 @@ So this script will re-encode your files to:
 # Example call
 
 ```
-./archive.sh ./source/ ./output/ | tee ./output/archive-summary.txt
+mkdir ./output/ && ./archive.sh ./source/ ./output/ | tee ./output/archive-summary.txt
 ```
 
 If a file already exists in the output folder, it will be skipped.
