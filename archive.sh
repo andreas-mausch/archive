@@ -27,11 +27,19 @@ function convertFile {
   fi
 }
 
-function fileExists {
-  TARGET_FILENAME="${TARGET_FOLDER}/${1%.*}"
-
-  if ! ls "${TARGET_FILENAME}".* 1> /dev/null 2>&1; then
-    echo "File not copied: ${SOURCE_FOLDER}/${1}"
+function copyFile {
+  LOWERCASE_FILENAME="${0,,}"
+  if [[ "${LOWERCASE_FILENAME}" =~ ^.*\.(jpg|jpeg|png|gif)$ ]]; then
+    convertFile "$0" ./image.sh heic
+  elif [[ "${LOWERCASE_FILENAME}" =~ ^.*\.(mp3|m4a|opus)$ ]]; then
+    convertFile "$0" ./audio.sh opus
+  elif [[ "${LOWERCASE_FILENAME}" =~ ^.*\.(mp4|mov)$ ]]; then
+    # Already handled before
+    :
+  elif [[ "${LOWERCASE_FILENAME}" =~ ^.*\.(txt|html|xhtml|pdf)$ ]]; then
+    convertFile "$0" ./copy.sh "${0##*.}"
+  else
+    echo "File not copied (unknown type): ${0}"
   fi
 }
 
@@ -39,14 +47,8 @@ export ARCHIVE_SCRIPT_DIRECTORY
 export SOURCE_FOLDER
 export TARGET_FOLDER
 export -f convertFile
-export -f fileExists
+export -f copyFile
 
 cd "${SOURCE_FOLDER}"
-
-find . -iregex ".*\.\(jpg\|jpeg\|png\|gif\)$" -print0 | xargs -0 -n1 -P 32 bash -c 'convertFile "$0" ./image.sh heic'
-find . -iregex ".*\.\(mp3\|m4a\|opus\)$" -print0 | xargs -0 -n1 -P 32 bash -c 'convertFile "$0" ./audio.sh opus'
 find . -iregex ".*\.\(mp4\|mov\)$" -print0 | xargs -0 -n1 bash -c 'convertFile "$0" ./video.sh mp4'
-find . -iregex ".*\.\(txt\|html\|xhtml\|pdf\)$" -print0 | xargs -0 -n1 bash -c 'convertFile "$0" ./copy.sh "${0##*.}"'
-
-echo
-find . -type f -print0 | xargs -0 -n1 -P 32 bash -c 'fileExists "$0"'
+find . -type f -print0 | xargs -0 -n1 -P 8 bash -c 'copyFile "$0"'
