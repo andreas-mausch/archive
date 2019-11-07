@@ -29,14 +29,14 @@ function convertFile {
 
 function copyFile {
   LOWERCASE_FILENAME="${0,,}"
-  if [[ "${LOWERCASE_FILENAME}" =~ ^.*\.(jpg|jpeg|png|gif)$ ]]; then
+  if [[ "${LOWERCASE_FILENAME}" =~ ^.*\.(bmp|jpg|jpeg|png|gif)$ ]]; then
     convertFile "$0" ./image.sh heic
-  elif [[ "${LOWERCASE_FILENAME}" =~ ^.*\.(mp3|m4a|opus)$ ]]; then
+  elif [[ "${LOWERCASE_FILENAME}" =~ ^.*\.(mp3|m4a|opus|wav)$ ]]; then
     convertFile "$0" ./audio.sh opus
-  elif [[ "${LOWERCASE_FILENAME}" =~ ^.*\.(mp4|mov)$ ]]; then
+  elif [[ "${LOWERCASE_FILENAME}" =~ ^.*\.(avi|mp4|mpg|mpeg|mov)$ ]]; then
     # Already handled before
     :
-  elif [[ "${LOWERCASE_FILENAME}" =~ ^.*\.(txt|html|xhtml|pdf)$ ]]; then
+  elif [[ "${LOWERCASE_FILENAME}" =~ ^.*\.(txt|html|mhtml|xhtml|pdf|doc|docx|xls|xlsx|odt|ods)$ ]]; then
     convertFile "$0" ./copy.sh "${0##*.}"
   else
     echo "File not copied (unknown type): ${0}"
