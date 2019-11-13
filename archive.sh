@@ -7,6 +7,16 @@ if [ "$#" -ne 2 ]; then
   exit 2
 fi
 
+if ! [ -x "$(command -v ffmpeg)" ]; then
+  echo "Error: ffmpeg is not installed." >&2
+  exit 1
+fi
+
+if ! [ -x "$(command -v magick)" ]; then
+  echo "Error: magick is not installed." >&2
+  exit 1
+fi
+
 ARCHIVE_SCRIPT_DIRECTORY="${PWD}"
 SOURCE_FOLDER=$(realpath "$1")
 TARGET_FOLDER=$(realpath "$2")
