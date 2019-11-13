@@ -2,6 +2,11 @@
 
 set -e
 
+if [ "$#" -ne 2 ]; then
+  echo "Usage: ${0} ./source/ ./output/"
+  exit 2
+fi
+
 ARCHIVE_SCRIPT_DIRECTORY="${PWD}"
 SOURCE_FOLDER=$(realpath "$1")
 TARGET_FOLDER=$(realpath "$2")
