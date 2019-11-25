@@ -65,5 +65,5 @@ export -f convertFile
 export -f copyFile
 
 cd "${SOURCE_FOLDER}"
-find . -iregex ".*\.\(avi\|mp4\|mpg\|mpeg\|mov\)$" -print0 | xargs -0 -n1 bash -c 'convertFile "$0" ./video.sh mp4'
+find . -iregex ".*\.\(avi\|mp4\|mpg\|mpeg\|mov\)$" -print0 | xargs --no-run-if-empty -0 -n1 bash -c 'convertFile "$0" ./video.sh mp4'
 find . -type f -print0 | xargs -0 -n1 -P 8 bash -c 'copyFile "$0"'
