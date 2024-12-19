@@ -51,7 +51,7 @@ function copyFile {
   elif [[ "${LOWERCASE_FILENAME}" =~ ^.*\.(avi|mp4|mpg|mpeg|mov|mkv)$ ]]; then
     # Already handled before
     :
-  elif [[ "${LOWERCASE_FILENAME}" =~ ^.*\.(txt|json|yml|yaml|toml|csv|eml|md|htm|html|mhtml|xhtml|ics|vcf|pdf|doc|docx|rtf|xls|xlsx|odt|ods|svg|pgp|gpg|zip|7z|xz|sav|sh3d|bundle|key|id_rsa|pub|crypt14|cryptkey|database|db|gpx|mbox)$ ]]; then
+  elif [[ "${LOWERCASE_FILENAME}" =~ ^.*\.(txt|json|yml|yaml|toml|csv|eml|md|htm|html|mhtml|xhtml|ics|vcf|pdf|doc|docx|rtf|xls|xlsx|odt|ods|svg|pgp|gpg|asc|zip|7z|xz|sav|sh3d|bundle|key|id_rsa|pub|crypt14|cryptkey|database|db|gpx|mbox)$ ]]; then
     convertFile "$0" ./copy.sh "${0##*.}"
   else
     echo "File not copied (unknown type): ${0}"
