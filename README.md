@@ -27,6 +27,10 @@ mkdir ./output/ && ./archive.sh ./source/ ./output/ | tee ./output/archive-summa
 
 If a file already exists in the output folder, it will be skipped.
 
+# Decisions
+
+Why the formats and pipeline above are the way they are (and what we considered instead): see [decision records](docs/decisions/).
+
 # Requirements
 
 - bash
