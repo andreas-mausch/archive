@@ -55,6 +55,7 @@ magick "$1" -auto-orient -resize "3840x3840>" -define jxl:distance=2.2 "$2"
   - Phone compatibility is limited (see supporting research), but phone viewing/sharing is outside the archive's scope and does not block this decision
   - Edge and Samsung Internet still don't render `.jxl`: if archive photos ever get *published* on a website, serve AVIF with WebP/JPEG fallbacks
 - **Risks / neutral:**
+  - ImageMagick 7.1.2-31 drops ICC profiles in lossy JXL encoding; rollout requires the upstream fix present in 7.1.2-33 and verified original-profile preservation (see "JXL ICC rollout check" below)
   - libjxl is formally < 1.0 (ABI frozen and stable for years, but formally < 1.0)
   - JXL's browser history (flagged 2021 → removed 2023 → re-shipped 2026) shows adoption is partly a political process
   - The compatibility snapshot in the appendix is dated 2026-11; re-verify before rollout
@@ -76,6 +77,30 @@ magick "$1" -auto-orient -resize "3840x3840>" -define jxl:distance=2.2 "$2"
 - [ ] Verify preservation of all original metadata across representative input formats, including format-specific metadata and the effects of auto-orientation and resizing; settle how to retain metadata that the JXL pipeline cannot embed.
 - [ ] Test real `.jpg` and `.heic` phone photos with EXIF, XMP and ICC profiles where present: compare source and output metadata, verify capture timestamps/timezone offsets, GPS and camera/lens information, and check that orientation and dimensions match the converted image. Missing metadata must not pass unnoticed.
 - [x] Target resolution: longest side at most 3840 pixels, preserving aspect ratio without cropping or upscaling
+
+## JXL ICC rollout check
+
+Checked on 2026-11-10 with ImageMagick 7.1.2-31 and libjxl 0.12.0, using our
+anonymized Display P3 fixture and a HEIC derived from it:
+
+- At `jxl:distance=2.2`, both JPEG and HEIC inputs produce JXL files whose original
+  color profile is sRGB instead of Display P3. This is not evidence of a correct
+  P3-to-sRGB pixel conversion: the old encoder ignores the input ICC in lossy mode.
+- At `jxl:distance=0`, the original Display P3 ICC survives byte-for-byte.
+- Explicitly setting `-profile` does not bypass the lossy-mode bug in this version.
+- EXIF, GPS, XMP and the embedded thumbnail survive the trial; the already
+  documented auto-orientation geometry limitation remains separate.
+
+Upstream [PR #8992](https://github.com/ImageMagick/ImageMagick/pull/8992), merged
+2026-10-01, fixes this behavior. Source inspection confirms the fix in 7.1.2-33,
+but not 7.1.2-32. [Issue #8974](https://github.com/ImageMagick/ImageMagick/issues/8974)
+reports the same problem on 7.1.2-31. The newer build has not yet been tested here.
+
+Before rollout, pin a build containing the fix and repeat the lossy trial. Compare
+the source ICC bytes with `djxl --orig_icc_out`; ExifTool does not expose the ICC
+stored in the JXL codestream in our test. A decoder's output profile is not a
+substitute for checking the stored original profile. Do not switch to lossless
+encoding or add a local profile-repair workaround just to evade this bug.
 
 ## Supporting research
 
