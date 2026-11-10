@@ -19,10 +19,24 @@ So this script will re-encode your files to:
   - Opus file format
   - 96 kbps
 
-# Example call
+# Commands
+
+Check tool availability and unsupported files without writing outputs or invoking
+converters:
+
+```bash
+./archive.sh check ./source/
+```
+
+The check scans all regular files and reports every unsupported file. It exits
+with status `0` if all file extensions are supported, or a nonzero status if
+unsupported files or scan errors are found. It does not validate media contents
+or detect output-name collisions yet.
+
+Run the existing conversion and copy pipeline:
 
 ```
-mkdir ./output/ && ./archive.sh ./source/ ./output/ | tee ./output/archive-summary.txt
+mkdir ./output/ && ./archive.sh run ./source/ ./output/ | tee ./output/archive-summary.txt
 ```
 
 If a file already exists in the output folder, it will be skipped.

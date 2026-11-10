@@ -34,7 +34,7 @@ reset_case() {
   export MOCK_MODE=success
 }
 run_archive() {
-  bash "$repo/archive.sh" "$scratch/source" "$scratch/output" > "$scratch/run.log" 2>&1
+  bash "$repo/archive.sh" run "$scratch/source" "$scratch/output" > "$scratch/run.log" 2>&1
 }
 no_temps() {
   local files
@@ -105,13 +105,56 @@ check_output photo.jpg photo.heic
 [[ $(< "$scratch/output/.archive-leftover.heic") == 'stale partial' ]] || fail 'Restart modified unrelated leftover'
 pass 'Leftover temporary file is ignored'
 
+reset_case
+for name in photo.JPG sound.wav movie.mkv note.txt; do
+  printf 'fixture\n' > "$scratch/source/$name"
+done
+export MOCK_MODE=partial
+bash "$repo/archive.sh" check "$scratch/source" > "$scratch/run.log" 2>&1 || fail 'Supported source check failed'
+[[ ! -s $MOCK_LOG ]] || fail 'Check invoked a converter'
+[[ -z $(find "$scratch/output" -type f -print) ]] || fail 'Check wrote outputs'
+touch "$scratch/source/unknown.file" "$scratch/source/no-extension"
+if bash "$repo/archive.sh" check "$scratch/source" > "$scratch/run.log" 2>&1; then
+  fail 'Unsupported files passed check'
+fi
+log=$(< "$scratch/run.log")
+[[ $log == *'unknown.file'* && $log == *'no-extension'* ]] || fail 'Check did not report all unsupported files'
+[[ ! -s $MOCK_LOG ]] || fail 'Failed check invoked a converter'
+pass 'Check reports unsupported files without converting or writing outputs'
+
+for args in '' 'check' 'run' 'unknown source' 'check source output' 'run source' 'source output'; do
+  read -r -a arguments <<< "$args"
+  status=0
+  bash "$repo/archive.sh" "${arguments[@]}" > "$scratch/run.log" 2>&1 || status=$?
+  [[ $status -eq 2 ]] || fail "Invalid arguments did not return usage status: $args"
+done
+pass 'Invalid commands and argument counts return usage status'
+
+bash_path=$(command -v bash)
+for missing in ffmpeg magick; do
+  tools="$scratch/without-$missing"
+  mkdir "$tools"
+  if [[ $missing == ffmpeg ]]; then available=magick; else available=ffmpeg; fi
+  ln -s "$scratch/bin/$available" "$tools/$available"
+  for command in check run; do
+    arguments=("$command" "$scratch/source")
+    if [[ $command == run ]]; then arguments+=("$scratch/output"); fi
+    if PATH="$tools" "$bash_path" "$repo/archive.sh" "${arguments[@]}" > "$scratch/run.log" 2>&1; then
+      fail "$command accepted missing $missing"
+    fi
+    log=$(< "$scratch/run.log")
+    [[ $log == *"$missing is not installed"* ]] || fail "$command did not identify missing $missing"
+  done
+done
+pass 'Check and run reject missing FFmpeg or ImageMagick'
+
 if command -v setsid >/dev/null && env --default-signal=INT true 2>/dev/null; then
   for signal in TERM INT; do
     reset_case
     printf 'fixture\n' > "$scratch/source/movie.mov"
     mkfifo "$MOCK_GATE"
     export MOCK_MODE=block
-    setsid env --default-signal=INT bash "$repo/archive.sh" "$scratch/source" "$scratch/output" > "$scratch/run.log" 2>&1 &
+    setsid env --default-signal=INT bash "$repo/archive.sh" run "$scratch/source" "$scratch/output" > "$scratch/run.log" 2>&1 &
     group=$!
     ready=false
     for ((attempt=0; attempt<200; attempt++)); do

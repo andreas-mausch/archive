@@ -2,8 +2,9 @@
 
 set -eo pipefail
 
-if [ "$#" -ne 2 ]; then
-  echo "Usage: ${0} ./source/ ./output/"
+if ! { [ "$#" -eq 2 ] && [ "$1" = check ]; } &&
+   ! { [ "$#" -eq 3 ] && [ "$1" = run ]; }; then
+  printf 'Usage: %s check ./source/\n       %s run ./source/ ./output/\n' "$0" "$0" >&2
   exit 2
 fi
 
@@ -17,13 +18,11 @@ if ! [ -x "$(command -v magick)" ]; then
   exit 1
 fi
 
+COMMAND=$1
 ARCHIVE_SCRIPT_DIRECTORY="${PWD}"
-SOURCE_FOLDER=$(realpath "$1")
-TARGET_FOLDER=$(realpath "$2")
+SOURCE_FOLDER=$(realpath "$2")
 
 echo "Source folder: ${SOURCE_FOLDER}"
-echo "Target folder: ${TARGET_FOLDER}"
-echo
 
 function convertFile (
   set -e
@@ -52,26 +51,62 @@ function convertFile (
   mv -- "${TEMP_FILENAME}" "${TARGET_FILENAME}"
 )
 
-function copyFile {
-  LOWERCASE_FILENAME="${0,,}"
+function classifyFile {
+  local LOWERCASE_FILENAME="${1,,}"
+  CONVERTER=
+  OUTPUT_EXTENSION=
   if [[ "${LOWERCASE_FILENAME}" =~ ^.*\.(bmp|jpg|jpeg|png|gif|heic)$ ]]; then
-    convertFile "$0" ./image.sh heic
+    CONVERTER=image.sh
+    OUTPUT_EXTENSION=heic
   elif [[ "${LOWERCASE_FILENAME}" =~ ^.*\.(mp3|m4a|opus|wav)$ ]]; then
-    convertFile "$0" ./audio.sh opus
+    CONVERTER=audio.sh
+    OUTPUT_EXTENSION=opus
   elif [[ "${LOWERCASE_FILENAME}" =~ ^.*\.(avi|mp4|mpg|mpeg|mov|mkv)$ ]]; then
+    CONVERTER=video.sh
+    OUTPUT_EXTENSION=mp4
+  elif [[ "${LOWERCASE_FILENAME}" =~ ^.*\.(txt|json|yml|yaml|toml|csv|eml|md|htm|html|mhtml|xhtml|ics|vcf|pdf|doc|docx|rtf|xls|xlsx|odt|ods|svg|pgp|gpg|asc|zip|7z|xz|sav|sh3d|bundle|key|id_rsa|pub|crypt14|cryptkey|database|db|gpx|mbox)$ ]]; then
+    CONVERTER=copy.sh
+    OUTPUT_EXTENSION="${1##*.}"
+  fi
+}
+
+function copyFile {
+  classifyFile "$0"
+  if [ "${CONVERTER}" = video.sh ]; then
     # Already handled before
     :
-  elif [[ "${LOWERCASE_FILENAME}" =~ ^.*\.(txt|json|yml|yaml|toml|csv|eml|md|htm|html|mhtml|xhtml|ics|vcf|pdf|doc|docx|rtf|xls|xlsx|odt|ods|svg|pgp|gpg|asc|zip|7z|xz|sav|sh3d|bundle|key|id_rsa|pub|crypt14|cryptkey|database|db|gpx|mbox)$ ]]; then
-    convertFile "$0" ./copy.sh "${0##*.}"
+  elif [ -n "${CONVERTER}" ]; then
+    convertFile "$0" "${CONVERTER}" "${OUTPUT_EXTENSION}"
   else
     echo "File not copied (unknown type): ${0}"
   fi
 }
 
+if [ "${COMMAND}" = check ]; then
+  cd "${SOURCE_FOLDER}"
+  find . -type f -print0 | (
+    STATUS=0
+    while IFS= read -r -d '' FILENAME; do
+      classifyFile "${FILENAME}"
+      if [ -z "${CONVERTER}" ]; then
+        printf 'Unsupported file: %s\n' "${FILENAME}" >&2
+        STATUS=1
+      fi
+    done
+    exit "${STATUS}"
+  )
+  exit 0
+fi
+
+TARGET_FOLDER=$(realpath "$3")
+echo "Target folder: ${TARGET_FOLDER}"
+echo
+
 export ARCHIVE_SCRIPT_DIRECTORY
 export SOURCE_FOLDER
 export TARGET_FOLDER
 export -f convertFile
+export -f classifyFile
 export -f copyFile
 
 cd "${SOURCE_FOLDER}"
