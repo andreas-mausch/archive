@@ -19,7 +19,7 @@ if ! [ -x "$(command -v magick)" ]; then
 fi
 
 COMMAND=$1
-ARCHIVE_SCRIPT_DIRECTORY="${PWD}"
+ARCHIVE_SCRIPT_DIRECTORY=$(dirname "$(realpath "${BASH_SOURCE[0]}")")
 SOURCE_FOLDER=$(realpath "$2")
 
 echo "Source folder: ${SOURCE_FOLDER}"

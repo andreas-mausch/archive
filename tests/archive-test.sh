@@ -34,7 +34,7 @@ reset_case() {
   export MOCK_MODE=success
 }
 run_archive() {
-  bash "$repo/archive.sh" run "$scratch/source" "$scratch/output" > "$scratch/run.log" 2>&1
+  (cd "$scratch" && bash "$repo/archive.sh" run "$scratch/source" "$scratch/output") > "$scratch/run.log" 2>&1
 }
 no_temps() {
   local files
