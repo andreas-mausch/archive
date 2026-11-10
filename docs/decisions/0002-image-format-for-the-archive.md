@@ -8,9 +8,9 @@ superseded-by: []
 
 # 0002: Image format for the archive
 
-> Status notes: research complete, JPEG XL chosen. Flips to **accepted** once:
-> (1) the phone-viewing strategy is settled, (2) `image.sh` ships the JXL path;
-> both are tracked under Open questions. Acceptance owner: neonew.
+> Status notes: research complete, JPEG XL chosen. Flips to **accepted** once
+> `image.sh` ships the JXL path with verified metadata preservation.
+> Phone viewing is outside the scope of this Blu-ray archive. Acceptance owner: neonew.
 
 ## Context
 
@@ -21,38 +21,38 @@ We are evaluating a replacement: full-resolution 4K (3840×2160, ~8.3 MP) in a m
 Key requirements and constraints:
 
 - **Decades-long readability**: files on Blu-ray must still decode in the 2040s, without anyone keeping a vendor alive for us
-- **Archive fidelity**: near visually-lossless without paying lossless file sizes
+- **Archive fidelity**: good visual quality at default distance `2.2` without paying lossless file sizes; preserve all metadata from the original image
 - **Batch throughput**: thousands of encodes per archive run
 - **Disc capacity**: better photos *and* more photos per disc
-- **Phone viewing/sharing**: Android with Aves gallery and Conversations (XMPP)
+- **Scope**: phone viewing/sharing is not required for the Blu-ray archive
 
 ## Decision
 
 We will use **JPEG XL (JXL)** for archived images:
 
-- **New photos:** full resolution (capped at 4K), near-visually-lossless at `cjxl -d 1.0 -e 7`.
-- **Legacy JPEG archives:** lossless, reversible size win via `cjxl in.jpg out.jxl` (this *is* `--lossless_jpeg=1`, cjxl's default for JPEG input; byte-identical roundtrip verified).
+- **All images:** use one ImageMagick pipeline, retaining full resolution up to the 4K cap, with distance `2.2` as the default (`-define jxl:distance=2.2`). This favors smaller files over the near-visually-lossless `1.0` setting compared in the supporting research.
+- **Pipeline simplicity:** prefer a single conversion path over lossless compression for special cases. There is no separate lossless JPEG recompression path, even for JPEGs below the 4K cap; resizing larger JPEGs would prevent byte-identical reconstruction anyway.
+- **Metadata:** preserve all metadata from the original image, including EXIF, XMP, ICC profiles and format-specific metadata. The pipeline must not silently discard unsupported metadata; preservation must be verified before rollout.
+- **Phone photo metadata:** correct transfer of EXIF, XMP and ICC profiles from both `.jpg` and `.heic` phone photos is a rollout requirement. Verify capture timestamps (including timezone offsets), GPS coordinates, camera/lens information and embedded XMP where present. After auto-orientation and resizing, orientation and image dimensions must describe the output correctly rather than retain stale source values.
 
 Suggested `image.sh` pipeline (to be implemented):
 
 ```sh
-# new photos: full-res 4K, near-visually-lossless (ImageMagick handles all input formats)
-magick "$1" -auto-orient -resize "3840x3840>" -define jxl:distance=1.0 "$2"
-# legacy JPEG archives: lossless, reversible size win, cjxl only (ImageMagick can't)
-cjxl "$1" "$2"
-# (cjxl for LOSSY re-encoding of a JPEG would additionally need --lossless_jpeg=0)
+# all images: full-res 4K, default distance 2.2 (metadata preservation still needs verification)
+magick "$1" -auto-orient -resize "3840x3840>" -define jxl:distance=2.2 "$2"
 ```
 
 ## Consequences
 
 - **Positive:**
-  - Best quality exactly at archive fidelity: at SSIMULACRA2 ≥ 85, JXL measured 46-65 % smaller than JPEG and 23-49 % smaller than AVIF (own measurement on a real photo, see appendix)
-  - **Undoable migration:** lossless JPEG recompression makes the archive byte-reversible, the best insurance against format risk; no other candidate can do this
+  - Strong compression at higher quality settings: at SSIMULACRA2 ≥ 85, JXL measured 46-65 % smaller than JPEG and 23-49 % smaller than AVIF (see appendix). These results do not establish that the default distance `2.2` reaches this quality threshold; it scored 83.1 on our test photo.
+  - One ImageMagick conversion path for all input formats, without special-case lossless JPEG handling
   - Effort-7 encoding is fast enough for batches of thousands (AVIF's max-quality mode costs minutes per image)
   - ISO standard (ISO/IEC 18181:2022), royalty-free, native EXIF/XMP/ICC, HDR, progressive rendering
   - Browser support became real: Chrome 155 and Firefox 157/158 ship it on by default (Oct 2026)
 - **Negative:**
-  - **The phone is the weak spot:** no Android system decoder; Aves cannot open `.jxl` (issue #730, P4, open since 2023); Google Photos and Conversations don't support it either → switch to Fossify Gallery, convert to JPEG on share, or stay on HEIC as fallback (plays natively, but reintroduces patent + browser costs)
+  - Lossy conversion is not byte-reversible, even for JPEGs below the 4K cap; JXL's lossless JPEG recompression capability is deliberately not used
+  - Phone compatibility is limited (see supporting research), but phone viewing/sharing is outside the archive's scope and does not block this decision
   - Edge and Samsung Internet still don't render `.jxl`: if archive photos ever get *published* on a website, serve AVIF with WebP/JPEG fallbacks
 - **Risks / neutral:**
   - libjxl is formally < 1.0 (ABI frozen and stable for years, but formally < 1.0)
@@ -71,9 +71,10 @@ cjxl "$1" "$2"
 
 ## Open questions
 
-- [ ] Phone viewing strategy: switch Aves → Fossify Gallery, keep AVIF, keep HEIC (plays natively in Aves, see Table 2), or convert-to-JPEG on share?
-- [ ] Image sharing over XMPP: confirm current Conversations attachment pipeline (re-encode settings) so archive originals are never silently degraded
-- [ ] Run a test batch: ~20 representative vacation photos as `cjxl -d 1.0 -e 7` vs. `avifenc -q 60 -s 6`, eyeball at 100 % zoom (benchmarks disagree by content!)
+- [x] Phone viewing/sharing strategy: not required for the Blu-ray archive; no phone-specific fallback or XMPP sharing pipeline is needed
+- [ ] Run a test batch: ~20 representative vacation photos through the proposed ImageMagick pipeline (`magick "$1" -auto-orient -resize "3840x3840>" -define jxl:distance=2.2 "$2"`); compare against AVIF at comparable output dimensions and visually inspect at 100 % zoom (benchmarks disagree by content!).
+- [ ] Verify preservation of all original metadata across representative input formats, including format-specific metadata and the effects of auto-orientation and resizing; settle how to retain metadata that the JXL pipeline cannot embed.
+- [ ] Test real `.jpg` and `.heic` phone photos with EXIF, XMP and ICC profiles where present: compare source and output metadata, verify capture timestamps/timezone offsets, GPS and camera/lens information, and check that orientation and dimensions match the converted image. Missing metadata must not pass unnoticed.
 - [ ] Decide final target resolution (keep 4K? the whole point of JXL is keeping full res affordable)
 
 ## Supporting research
