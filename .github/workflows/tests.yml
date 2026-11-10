@@ -15,9 +15,21 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Check Bash syntax
-        run: bash -n archive.sh audio.sh copy.sh image.sh video.sh tests/archive-test.sh tests/mock-converter.sh
+        run: bash -n archive.sh audio.sh copy.sh image.sh video.sh tests/archive-test.sh tests/mock-converter.sh tests/integration-test.sh
       - name: Run regression tests
         run: |
           command -v setsid
           env --default-signal=INT true
           bash tests/archive-test.sh
+
+  integration:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install media tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg imagemagick libheif-plugin-x265 libheif-plugin-libde265
+      - name: Run integration tests
+        run: bash tests/integration-test.sh
