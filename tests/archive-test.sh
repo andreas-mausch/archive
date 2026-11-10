@@ -48,7 +48,7 @@ check_output() {
 
 reset_case
 mkdir "$scratch/source/sub folder"
-for name in 'sub folder/note.txt' photo.jpg sound.wav movie.mov; do
+for name in 'sub folder/note.txt' photo.jpg sound.wav movie.mkv; do
   printf 'fixture: %s\n' "$name" > "$scratch/source/$name"
   touch -d '2001-02-03 04:05:06.123456789 UTC' "$scratch/source/$name"
 done
@@ -56,7 +56,7 @@ run_archive || fail 'Successful archive rejected'
 check_output 'sub folder/note.txt' 'sub folder/note.txt'
 check_output photo.jpg photo.heic
 check_output sound.wav sound.opus
-check_output movie.mov movie.mp4
+check_output movie.mkv movie.mp4
 no_temps
 pass 'Copy, image, audio, video, flags, suffixes and timestamps'
 before=$(wc -l < "$MOCK_LOG")
@@ -67,7 +67,7 @@ run_archive || fail 'Rerun did not skip existing outputs'
 check_output 'sub folder/note.txt' 'sub folder/note.txt'
 check_output photo.jpg photo.heic
 check_output sound.wav sound.opus
-check_output movie.mov movie.mp4
+check_output movie.mkv movie.mp4
 pass 'Rerun skips existing outputs'
 
 for extension in jpg wav mov; do
