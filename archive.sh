@@ -72,35 +72,44 @@ function classifyFile {
 
 function copyFile {
   classifyFile "$0"
-  if [ "${CONVERTER}" = video.sh ]; then
-    # Already handled before
-    :
-  elif [ -n "${CONVERTER}" ]; then
+  if [ -n "${CONVERTER}" ]; then
     convertFile "$0" "${CONVERTER}" "${OUTPUT_EXTENSION}"
   else
     echo "File not copied (unknown type): ${0}"
   fi
 }
 
-if [ "${COMMAND}" = check ]; then
-  cd "${SOURCE_FOLDER}"
-  find . -type f -print0 | (
+function checkDirectory {
+  find "$1" -maxdepth 1 -type f -print0 | (
     STATUS=0
+    declare -A SOURCES_BY_TARGET
     while IFS= read -r -d '' FILENAME; do
       classifyFile "${FILENAME}"
       if [ -z "${CONVERTER}" ]; then
-        printf 'Unsupported file: %s\n' "${FILENAME}" >&2
+        if [ "${COMMAND}" = check ]; then
+          printf 'Unsupported file: %s\n' "${FILENAME}" >&2
+          STATUS=1
+        fi
+        continue
+      fi
+      TARGET="${FILENAME%.*}.${OUTPUT_EXTENSION}"
+      if [[ -n "${SOURCES_BY_TARGET[${TARGET}]+exists}" ]]; then
+        printf 'Output collision for %s: %s and %s\n' \
+          "${TARGET}" "${SOURCES_BY_TARGET[${TARGET}]}" "${FILENAME}" >&2
         STATUS=1
+      else
+        SOURCES_BY_TARGET["${TARGET}"]="${FILENAME}"
       fi
     done
     exit "${STATUS}"
   )
-  exit 0
-fi
+}
 
-TARGET_FOLDER=$(realpath "$3")
-echo "Target folder: ${TARGET_FOLDER}"
-echo
+if [ "${COMMAND}" = run ]; then
+  TARGET_FOLDER=$(realpath "$3")
+  echo "Target folder: ${TARGET_FOLDER}"
+  echo
+fi
 
 export ARCHIVE_SCRIPT_DIRECTORY
 export SOURCE_FOLDER
@@ -110,5 +119,29 @@ export -f classifyFile
 export -f copyFile
 
 cd "${SOURCE_FOLDER}"
-find . -iregex ".*\.\(avi\|mp4\|mpg\|mpeg\|mov\|mkv\)$" -print0 | xargs --no-run-if-empty -0 -n1 bash -c 'convertFile "$0" ./video.sh mp4'
-find . -type f -print0 | xargs --no-run-if-empty -0 -n1 -P 8 bash -c 'copyFile "$0"'
+find . -type d -print0 | (
+  STATUS=0
+  while IFS= read -r -d '' DIRECTORY; do
+    if ! checkDirectory "${DIRECTORY}"; then
+      STATUS=1
+      continue
+    fi
+    if [ "${COMMAND}" = run ]; then
+      # Keep videos sequential and process other files with eight workers.
+      for PASS in videos others; do
+        PARALLEL=8
+        if [ "${PASS}" = videos ]; then PARALLEL=1; fi
+        if ! find "${DIRECTORY}" -maxdepth 1 -type f -print0 | while IFS= read -r -d '' FILENAME; do
+          classifyFile "${FILENAME}"
+          if { [ "${PASS}" = videos ] && [ "${CONVERTER}" = video.sh ]; } ||
+             { [ "${PASS}" = others ] && [ "${CONVERTER}" != video.sh ]; }; then
+            printf '%s\0' "${FILENAME}"
+          fi
+        done | xargs --no-run-if-empty -0 -n1 -P "${PARALLEL}" bash -c 'copyFile "$0"'; then
+          STATUS=1
+        fi
+      done
+    fi
+  done
+  exit "${STATUS}"
+)

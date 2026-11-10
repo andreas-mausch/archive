@@ -21,53 +21,40 @@ So this script will re-encode your files to:
 
 # Commands
 
-Check tool availability and unsupported files without writing outputs or invoking
-converters:
+Check tools, unsupported files and output-name collisions without writing files:
 
 ```bash
 ./archive.sh check ./source/
 ```
 
-The check scans all regular files and reports every unsupported file. It exits
-with status `0` if all file extensions are supported, or a nonzero status if
-unsupported files or scan errors are found. It does not validate media contents
-or detect output-name collisions yet.
+Checks all directories and reports all problems, returning a nonzero status if
+any are found. Media contents are not validated. Collision checks use memory for
+one directory at a time: `photo.jpg` and `photo.png` would both become `photo.heic`.
 
-Run the existing conversion and copy pipeline:
+Convert media and copy supported documents:
 
 ```
 mkdir ./output/ && ./archive.sh run ./source/ ./output/ | tee ./output/archive-summary.txt
 ```
 
-If a file already exists in the output folder, it will be skipped.
+Existing outputs are skipped. New outputs retain source timestamps and are
+published atomically after success. Rerun after interruption; leftover
+`.archive-*` files do not block it. Remove damaged final files from older runs
+manually. This is not a power-loss guarantee.
 
-New outputs are written to unique temporary files in the destination directory.
-Only after successful processing and timestamp preservation are they atomically
-renamed to their final names. After an interruption, rerun the same command:
-completed files are skipped and unfinished files are processed again from scratch.
-Temporary `.archive-*` files left by a forced termination do not block a restart.
+Each directory is checked before processing. Colliding directories are skipped;
+others continue. Collisions, scan errors and processing failures return a nonzero
+status. Unsupported files are reported and skipped; use `check` first. Videos run
+sequentially per directory, other files with up to eight workers.
 
-Processing failures are reported on stderr and make the script exit with a
-nonzero status. If piping the output through `tee`, enable `set -o pipefail` in
-your calling shell to retain that failure status.
-
-Existing incomplete final files from older runs are not repaired automatically;
-remove known damaged outputs before restarting. This protects against process
-interruption, not against storage failure or power loss. Sources must remain
-unchanged during processing. Do not run multiple archive jobs against the same
-destination; different sources with the same output name still need collision
-handling.
+Keep sources unchanged and avoid concurrent runs against the same destination.
+When piping through `tee`, enable `set -o pipefail` to preserve failure status.
 
 # Tests
 
-Run the small regression suite with `bash tests/archive-test.sh`. It creates
-isolated temporary inputs and uses mock converters to test output publication,
-errors and restart behavior without requiring large media fixtures. Process-group
-interruption tests additionally require `setsid` and GNU `env`.
-
-GitHub Actions runs the regression suite and Bash syntax checks on pushes and
-pull requests. The Linux CI job uses mock converters and does not need FFmpeg or
-ImageMagick installed.
+Run `bash tests/archive-test.sh` for mock-based regression tests. Interruption
+tests require `setsid` and GNU `env`. GitHub Actions runs the tests and syntax
+checks on pushes and pull requests without installing FFmpeg or ImageMagick.
 
 # Decisions
 

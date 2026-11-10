@@ -122,6 +122,45 @@ log=$(< "$scratch/run.log")
 [[ ! -s $MOCK_LOG ]] || fail 'Failed check invoked a converter'
 pass 'Check reports unsupported files without converting or writing outputs'
 
+reset_case
+mkdir "$scratch/source/images" "$scratch/source/audio" "$scratch/source/videos" "$scratch/source/good" "$scratch/source/other"
+colliding=(images/same.JpG images/same.png audio/same.mp3 audio/same.wav videos/same.mkv videos/same.mp4)
+for name in "${colliding[@]}" images/note.txt images/unknown.file videos/no-extension good/same.jpg other/same.png; do
+  printf 'fixture: %s\n' "$name" > "$scratch/source/$name"
+done
+if bash "$repo/archive.sh" check "$scratch/source" > "$scratch/run.log" 2>&1; then
+  fail 'Collisions passed check'
+fi
+log=$(< "$scratch/run.log")
+for name in "${colliding[@]}" images/unknown.file videos/no-extension; do
+  [[ $log == *"$name"* ]] || fail "Check did not report $name"
+done
+[[ ! -s $MOCK_LOG ]] || fail 'Collision check invoked converters'
+[[ -z $(find "$scratch/output" -type f -print) ]] || fail 'Collision check wrote outputs'
+pass 'Check reports all source collisions and unsupported files across directories'
+
+mkdir "$scratch/output/images"
+printf 'existing archive\n' > "$scratch/output/images/same.heic"
+if run_archive; then fail 'Run ignored source collisions'; fi
+[[ $(< "$scratch/output/images/same.heic") == 'existing archive' ]] || fail 'Collision changed existing output'
+[[ ! -e $scratch/output/images/note.txt && ! -e $scratch/output/audio && ! -e $scratch/output/videos ]] || fail 'Run processed a colliding directory'
+check_output good/same.jpg good/same.heic
+check_output other/same.png other/same.heic
+[[ $(wc -l < "$MOCK_LOG") -eq 2 ]] || fail 'Run converted colliding sources or skipped good directories'
+no_temps
+pass 'Run skips colliding directories, preserves existing outputs and processes independent directories'
+
+reset_case
+mkdir "$scratch/source/good"
+printf 'broken\n' > "$scratch/source/broken.wav"
+printf 'copy\n' > "$scratch/source/good/note.txt"
+export MOCK_MODE=partial
+if run_archive; then fail 'Later successful directory concealed processing failure'; fi
+[[ ! -e $scratch/output/broken.opus ]] || fail 'Failed conversion published output'
+check_output good/note.txt good/note.txt
+no_temps
+pass 'Processing failures remain failures while other directories are processed'
+
 for args in '' 'check' 'run' 'unknown source' 'check source output' 'run source' 'source output'; do
   read -r -a arguments <<< "$args"
   status=0
