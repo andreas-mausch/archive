@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -e
+set -eo pipefail
 
 if [ "$#" -ne 2 ]; then
   echo "Usage: ${0} ./source/ ./output/"
@@ -25,22 +25,32 @@ echo "Source folder: ${SOURCE_FOLDER}"
 echo "Target folder: ${TARGET_FOLDER}"
 echo
 
-function convertFile {
+function convertFile (
+  set -e
   SOURCE_FILENAME="${SOURCE_FOLDER}/${1}"
   TARGET_FILENAME="${TARGET_FOLDER}/${1%.*}.${3}"
+  TARGET_FILENAME_FOLDER=$(dirname "${TARGET_FILENAME}")
 
-  TARGET_DIRNAME=`dirname "${1}"`
-  TARGET_FILENAME_FOLDER="${TARGET_FOLDER}/${TARGET_DIRNAME}"
-  mkdir -p "${TARGET_FILENAME_FOLDER}"
-
-  if [ ! -f "${TARGET_FILENAME}" ]; then
-    echo "Archiving ${SOURCE_FILENAME}"
-    ${ARCHIVE_SCRIPT_DIRECTORY}/${2} "${SOURCE_FILENAME}" "${TARGET_FILENAME}"
-    touch -r "${SOURCE_FILENAME}" "${TARGET_FILENAME}"
-  else
+  if [ -f "${TARGET_FILENAME}" ]; then
     echo "Skipping (already exists): ${SOURCE_FILENAME}"
+    exit 0
   fi
-}
+
+  mkdir -p "${TARGET_FILENAME_FOLDER}"
+  TEMP_FILENAME=$(mktemp --tmpdir="${TARGET_FILENAME_FOLDER}" --suffix=".${3}" .archive-XXXXXX)
+  # Only completed outputs get their final name; stale temporary files are harmless.
+  trap 'rm -f -- "${TEMP_FILENAME}"' EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+
+  echo "Archiving ${SOURCE_FILENAME}"
+  if ! "${ARCHIVE_SCRIPT_DIRECTORY}/${2}" "${SOURCE_FILENAME}" "${TEMP_FILENAME}"; then
+    echo "Error: archiving failed: ${SOURCE_FILENAME}" >&2
+    exit 1
+  fi
+  touch -r "${SOURCE_FILENAME}" "${TEMP_FILENAME}"
+  mv -- "${TEMP_FILENAME}" "${TARGET_FILENAME}"
+)
 
 function copyFile {
   LOWERCASE_FILENAME="${0,,}"
@@ -66,4 +76,4 @@ export -f copyFile
 
 cd "${SOURCE_FOLDER}"
 find . -iregex ".*\.\(avi\|mp4\|mpg\|mpeg\|mov\)$" -print0 | xargs --no-run-if-empty -0 -n1 bash -c 'convertFile "$0" ./video.sh mp4'
-find . -type f -print0 | xargs -0 -n1 -P 8 bash -c 'copyFile "$0"'
+find . -type f -print0 | xargs --no-run-if-empty -0 -n1 -P 8 bash -c 'copyFile "$0"'
