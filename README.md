@@ -55,8 +55,8 @@ Keep sources unchanged and avoid concurrent runs against the same destination.
 Run `bash tests/archive-test.sh` for mock-based regression tests. Interruption
 tests require `setsid` and GNU `env`.
 
-Run `bash tests/integration-test.sh` for small generated media fixtures with real
-FFmpeg, FFprobe and ImageMagick, including HEIC encoding/decoding support. It
+Run `bash tests/integration-test.sh` for the fixed inputs in [tests/fixtures/](tests/fixtures/)
+with real FFmpeg, FFprobe and ImageMagick, including HEIC encoding/decoding support. It
 checks conversion, decoding, timestamps and reruns, not visual quality or metadata.
 GitHub Actions runs both suites in separate jobs on pushes and pull requests.
 
