@@ -51,6 +51,10 @@ isolated temporary inputs and uses mock converters to test output publication,
 errors and restart behavior without requiring large media fixtures. Process-group
 interruption tests additionally require `setsid` and GNU `env`.
 
+GitHub Actions runs the regression suite and Bash syntax checks on pushes and
+pull requests. The Linux CI job uses mock converters and does not need FFmpeg or
+ImageMagick installed.
+
 # Decisions
 
 Why the formats and pipeline above are the way they are (and what we considered instead): see [decision records](docs/decisions/).

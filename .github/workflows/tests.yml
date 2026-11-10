@@ -1,0 +1,23 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check Bash syntax
+        run: bash -n archive.sh audio.sh copy.sh image.sh video.sh tests/archive-test.sh tests/mock-converter.sh
+      - name: Run regression tests
+        run: |
+          command -v setsid
+          env --default-signal=INT true
+          bash tests/archive-test.sh
