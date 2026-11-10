@@ -14,9 +14,9 @@ superseded-by: []
 
 ## Context
 
-This repo compresses photos, videos and audio onto Blu-ray discs. The current image pipeline (so far undocumented; this ADR supersedes it): HEIC (HEIF), downscaled to 1920×1080. That saves space but needlessly throws away detail.
+This repo compresses photos, videos and audio onto Blu-ray discs. The current image pipeline (this ADR supersedes it): HEIC (HEIF), with the longest side capped at 1920 pixels. That saves space but needlessly throws away detail.
 
-We are evaluating a replacement: full-resolution 4K (3840×2160, ~8.3 MP) in a modern format.
+We are evaluating a replacement: a modern format with the longest side capped at 3840 pixels. This is not a fixed 3840×2160 UHD frame or an 8.3 MP limit.
 
 Key requirements and constraints:
 
@@ -30,15 +30,15 @@ Key requirements and constraints:
 
 We will use **JPEG XL (JXL)** for archived images:
 
-- **All images:** use one ImageMagick pipeline, retaining full resolution up to the 4K cap, with distance `2.2` as the default (`-define jxl:distance=2.2`). This favors smaller files over the near-visually-lossless `1.0` setting compared in the supporting research.
-- **Pipeline simplicity:** prefer a single conversion path over lossless compression for special cases. There is no separate lossless JPEG recompression path, even for JPEGs below the 4K cap; resizing larger JPEGs would prevent byte-identical reconstruction anyway.
+- **All images:** use one ImageMagick pipeline, retaining native resolution up to a longest-side limit of 3840 pixels, with distance `2.2` as the default (`-define jxl:distance=2.2`). Preserve the aspect ratio, without cropping or upscaling. For example, 6000×4000 becomes 3840×2560; 4000×6000 becomes 2560×3840. This favors smaller files over the near-visually-lossless `1.0` setting compared in the supporting research.
+- **Pipeline simplicity:** prefer a single conversion path over lossless compression for special cases. There is no separate lossless JPEG recompression path, even for JPEGs below the 3840-pixel limit; resizing larger JPEGs would prevent byte-identical reconstruction anyway.
 - **Metadata:** preserve all metadata from the original image, including EXIF, XMP, ICC profiles and format-specific metadata. The pipeline must not silently discard unsupported metadata; preservation must be verified before rollout.
 - **Phone photo metadata:** correct transfer of EXIF, XMP and ICC profiles from both `.jpg` and `.heic` phone photos is a rollout requirement. Verify capture timestamps (including timezone offsets), GPS coordinates, camera/lens information and embedded XMP where present. After auto-orientation and resizing, orientation and image dimensions must describe the output correctly rather than retain stale source values.
 
 Suggested `image.sh` pipeline (to be implemented):
 
 ```sh
-# all images: full-res 4K, default distance 2.2 (metadata preservation still needs verification)
+# longest side <= 3840, no crop/upscaling, distance 2.2 (metadata still needs verification)
 magick "$1" -auto-orient -resize "3840x3840>" -define jxl:distance=2.2 "$2"
 ```
 
@@ -75,7 +75,7 @@ magick "$1" -auto-orient -resize "3840x3840>" -define jxl:distance=2.2 "$2"
 - [ ] Run a test batch: ~20 representative vacation photos through the proposed ImageMagick pipeline (`magick "$1" -auto-orient -resize "3840x3840>" -define jxl:distance=2.2 "$2"`); compare against AVIF at comparable output dimensions and visually inspect at 100 % zoom (benchmarks disagree by content!).
 - [ ] Verify preservation of all original metadata across representative input formats, including format-specific metadata and the effects of auto-orientation and resizing; settle how to retain metadata that the JXL pipeline cannot embed.
 - [ ] Test real `.jpg` and `.heic` phone photos with EXIF, XMP and ICC profiles where present: compare source and output metadata, verify capture timestamps/timezone offsets, GPS and camera/lens information, and check that orientation and dimensions match the converted image. Missing metadata must not pass unnoticed.
-- [ ] Decide final target resolution (keep 4K? the whole point of JXL is keeping full res affordable)
+- [x] Target resolution: longest side at most 3840 pixels, preserving aspect ratio without cropping or upscaling
 
 ## Supporting research
 
