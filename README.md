@@ -34,6 +34,7 @@ one directory at a time: `photo.jpg` and `photo.png` would both become `photo.he
 Convert media and copy supported documents:
 
 ```
+set -o pipefail
 mkdir ./output/ && ./archive.sh run ./source/ ./output/ | tee ./output/archive-summary.txt
 ```
 
@@ -48,7 +49,6 @@ status. Unsupported files are reported and skipped; use `check` first. Videos ru
 sequentially per directory, other files with up to eight workers.
 
 Keep sources unchanged and avoid concurrent runs against the same destination.
-When piping through `tee`, enable `set -o pipefail` to preserve failure status.
 
 # Tests
 
