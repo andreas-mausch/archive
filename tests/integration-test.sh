@@ -2,11 +2,12 @@
 set -euo pipefail
 
 repo=$(realpath "$(dirname "${BASH_SOURCE[0]}")/..")
-for tool in ffmpeg ffprobe magick; do
+for tool in ffmpeg ffprobe magick exiftool; do
   command -v "$tool" >/dev/null || { printf 'Missing tool: %s\n' "$tool" >&2; exit 1; }
 done
 ffmpeg -version
 magick -version
+exiftool -ver
 
 scratch=$(mktemp -d)
 trap 'rm -rf -- "$scratch"' EXIT
@@ -25,7 +26,7 @@ bash "$repo/archive.sh" check "$source_folder"
 bash "$repo/archive.sh" run "$source_folder" "$output_folder"
 
 [[ $(magick "$output_folder/image-large.heic" -format '%m %w %h' info:) == 'HEIC 1920 1280' ]] || fail 'Wrong PNG conversion format or dimensions'
-[[ $(magick "$output_folder/image-small.heic" -format '%m %w %h' info:) == 'HEIC 64 48' ]] || fail 'Small JPEG was not preserved at its original dimensions'
+[[ $(magick "$output_folder/image-small.heic" -format '%m %w %h' info:) == 'HEIC 48 64' ]] || fail 'Small JPEG was not auto-oriented without upscaling'
 [[ $(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 "$output_folder/movie.mp4") == 'hevc,128,96' ]] || fail 'Wrong video codec or dimensions'
 [[ $(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 "$output_folder/movie.mp4") == aac ]] || fail 'Wrong video audio codec'
 [[ $(ffprobe -v error -count_frames -select_streams v:0 -show_entries stream=nb_read_frames -of csv=p=0 "$output_folder/movie.mp4") == 4 ]] || fail 'Incomplete video'
@@ -42,6 +43,48 @@ for pair in 'image-large.png image-large.heic' 'image-small.jpg image-small.heic
 done
 [[ $(find "$output_folder" -type f | wc -l) -eq 5 ]] || fail 'Unexpected output files'
 printf 'PASS: Real image, audio, video and copy pipeline, dimensions, complete decoding and timestamps\n'
+
+original_image="$source_folder/image-small.jpg"
+output_image="$output_folder/image-small.heic"
+metadata_tags=()
+while IFS='=' read -r tag value; do
+  tag=${tag%#}
+  case "$tag" in
+    -IFD0:Orientation|-ExifIFD:ExifImageWidth|-ExifIFD:ExifImageHeight|-ExifIFD:SubjectArea|-XMP-mwg-rs:RegionInfo) continue ;;
+  esac
+  metadata_tags+=("$tag")
+done < "$repo/tests/fixtures/image-small-metadata.args"
+diff -u <(exiftool -sort -G1 -s -n "${metadata_tags[@]}" "$original_image") \
+  <(exiftool -sort -G1 -s -n "${metadata_tags[@]}" "$output_image") || fail 'EXIF, GPS or non-geometric XMP metadata changed'
+[[ $(exiftool -b -ICC_Profile "$original_image" | sha256sum) == "$(exiftool -b -ICC_Profile "$output_image" | sha256sum)" ]] || fail 'ICC profile changed'
+printf 'PASS: EXIF, GPS, non-geometric XMP fields and exact ICC profile preservation\n'
+
+metadata_status=0
+assert_metadata() {
+  local actual
+  actual=$(exiftool -s3 -n "-$1" "$output_image")
+  if [[ $actual != "$2" ]]; then
+    printf 'FAIL: %s: expected "%s", got "%s"\n' "$1" "$2" "$actual" >&2
+    metadata_status=1
+  fi
+}
+assert_metadata IFD0:Orientation 1
+# Characterize ImageMagick's stale geometry, not the desired metadata values.
+# See tests/fixtures/README.md, "Known Auto-Orientation Behavior".
+assert_metadata ExifIFD:ExifImageWidth 64
+assert_metadata ExifIFD:ExifImageHeight 48
+assert_metadata ExifIFD:SubjectArea '32 24 16 12'
+assert_metadata XMP-mwg-rs:RegionAppliedToDimensionsW 64
+assert_metadata XMP-mwg-rs:RegionAppliedToDimensionsH 48
+assert_metadata XMP-mwg-rs:RegionAppliedToDimensionsUnit pixel
+assert_metadata XMP-mwg-rs:RegionType 'Face, Face'
+assert_metadata XMP-mwg-rs:RegionAreaUnit 'normalized, normalized'
+assert_metadata XMP-mwg-rs:RegionAreaX '0.25, 0.75'
+assert_metadata XMP-mwg-rs:RegionAreaY '0.5, 0.5'
+assert_metadata XMP-mwg-rs:RegionAreaW '0.2, 0.2'
+assert_metadata XMP-mwg-rs:RegionAreaH '0.2, 0.2'
+[[ $metadata_status -eq 0 ]] || fail 'Auto-orientation metadata behavior changed; review the documented limitation'
+printf 'PASS: Orientation updated; documented stale EXIF/XMP geometry reproduced\n'
 
 snapshot=$(stat -c '%n %i %y %z' "$output_folder/"*)
 hashes=$(sha256sum "$output_folder/"*)

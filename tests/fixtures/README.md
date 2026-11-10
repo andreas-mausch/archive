@@ -5,12 +5,15 @@ temporary directory; it never regenerates or modifies these originals.
 
 Created on 2026-11-10 with ImageMagick 7.1.2-31 and FFmpeg n9.0.1. All content is
 generated for this project, with no personal photos, recordings or location data.
-These fixtures cover conversion behavior, not visual quality or metadata fidelity.
+The small JPEG additionally embeds the standard Display P3 ICC profile
+(Copyright Apple Inc., 2022) from the supplied reference photo.
+These fixtures cover conversion and selected metadata, not visual quality or all
+format-specific metadata.
 
 | File               | Input properties                       | Expected output                       |
 |--------------------|----------------------------------------|---------------------------------------|
 | `image-large.png`  | 6000x4000, text, 8-bit palette PNG     | HEIC, 1920x1280                       |
-| `image-small.jpg`  | 64x48 grayscale gradient, JPEG         | HEIC, 64x48 (no upscaling)            |
+| `image-small.jpg`  | 64x48 color gradient, orientation 6     | HEIC, 48x64 (rotated, no upscaling)    |
 | `sound.mp3`        | 440 Hz tone, 0.4 s, mono MP3 at 48 kHz | Opus; 19200 decoded samples at 48 kHz |
 | `movie.mkv`        | 128x96, 4 frames, 10 fps, H.264 + AAC  | HEVC + AAC in MP4; 4 frames at 128x96 |
 | `note.txt`         | Short ASCII text                       | Byte-identical copy                   |
@@ -23,6 +26,55 @@ The invalid MP3 is copied in only for the failure test.
 The large image contains three centered lines: "archive", "large image" and
 "fixture", rendered in Noto Sans with antialiased text on a light background.
 PNG stores its 250 colors losslessly in an 8-bit palette to keep the file small.
+
+The small JPEG mirrors the reference photo's standard EXIF, GPS and XMP fields,
+using synthetic camera/lens names, dates, exposure settings and a public location
+near Times Square, New York (40.7580 N, 73.9855 W). The synthetic February capture
+time uses UTC-05:00 (EST); the GPS timestamp is the corresponding UTC time.
+See `image-small-metadata.args` for exact values.
+Its orientation is 90 degrees clockwise; dimensions, subject area, thumbnail and
+two synthetic XMP face regions refer to the 64x48 source. The thumbnail is newly
+generated. No original pixels, face identifiers or camera identifiers are copied.
+Opaque Apple MakerNotes, private XMP region extensions, MPF auxiliary images and
+HDR gain-map blocks are not reconstructed or copied. This fixture is not full
+coverage of the reference photo's format-specific data.
+
+## Known Auto-Orientation Behavior
+
+Observed on 2026-11-10 with ImageMagick 7.1.2-31 using the current `image.sh`.
+The fixture has 64x48 stored pixels and `IFD0:Orientation=6` (90 degrees clockwise).
+The HEIC output decodes correctly to 48x64 and `IFD0:Orientation` becomes `1`.
+However, ImageMagick preserves the following source-coordinate metadata without
+updating it for the rotation:
+
+- `ExifIFD:ExifImageWidth`: output `64`; correct rotated value would be `48`.
+- `ExifIFD:ExifImageHeight`: output `48`; correct rotated value would be `64`.
+- `ExifIFD:SubjectArea`: output `32 24 16 12`; correct rotated value would be
+  `24 32 12 16` (center X/Y and width/height).
+- `XMP-mwg-rs:RegionAppliedToDimensionsW`: output `64`; correct value would be `48`.
+- `XMP-mwg-rs:RegionAppliedToDimensionsH`: output `48`; correct value would be `64`.
+- `XMP-mwg-rs:RegionAreaX`: output `0.25, 0.75`; correct rotated centers would be
+  `0.5, 0.5`.
+- `XMP-mwg-rs:RegionAreaY`: output `0.5, 0.5`; correct rotated centers would be
+  `0.25, 0.75`.
+
+For this fixture, `XMP-mwg-rs:RegionAreaW` and `RegionAreaH` both remain
+`0.2, 0.2`; their identical normalized sizes do not change when swapped.
+`RegionAreaUnit` stays `normalized, normalized`, `RegionAppliedToDimensionsUnit`
+stays `pixel`, and `RegionType` stays `Face, Face`. These values are also asserted.
+
+The integration test explicitly asserts the observed stale values to characterize
+this known limitation. Passing these assertions does **not** mean the geometry is
+correct. This project does not implement its own EXIF/XMP coordinate repair.
+If an upstream version fixes the behavior, the assertions should fail so we can
+review the change and update them to the corrected values, rather than restore
+the stale metadata. The requirement for fully output-consistent metadata remains
+unfulfilled by the current pipeline.
+
+Camera/lens data, exposure fields, capture dates, subsecond times, timezone
+offsets, GPS fields and non-geometric XMP fields are compared with the source.
+The embedded ICC profile is checked byte-for-byte. Thumbnail geometry and the
+excluded vendor-specific/HDR blocks are not covered by these assertions.
 
 ## Creation Recipes
 
@@ -37,7 +89,14 @@ magick -size 6000x4000 xc:'#e8e4dc' \
   -fill '#28313b' -gravity center -annotate 0 $'archive\nlarge image\nfixture' \
   -depth 8 -define png:compression-level=9 -define png:compression-filter=5 \
   -define png:compression-strategy=1 image-large.png
-magick -size 64x48 gradient: -quality 60 image-small.jpg
+profile=$(mktemp)
+thumbnail=$(mktemp --suffix=.jpg)
+exiftool -b -ICC_Profile image-small.jpg > "$profile"
+magick -size 64x48 'gradient:#f0e4d0-#26384a' -quality 60 image-small.jpg
+magick image-small.jpg -resize 16x12 -quality 60 "$thumbnail"
+exiftool -overwrite_original -@ image-small-metadata.args \
+  "-ICC_Profile<=$profile" "-ThumbnailImage<=$thumbnail" image-small.jpg
+rm -- "$profile" "$thumbnail"
 ffmpeg -nostdin -y -hide_banner -loglevel error -f lavfi \
   -i sine=frequency=440:sample_rate=48000:duration=0.4 \
   -c:a libmp3lame -b:a 64k sound.mp3

@@ -56,8 +56,9 @@ Run `bash tests/archive-test.sh` for mock-based regression tests. Interruption
 tests require `setsid` and GNU `env`.
 
 Run `bash tests/integration-test.sh` for the fixed inputs in [tests/fixtures/](tests/fixtures/)
-with real FFmpeg, FFprobe and ImageMagick, including HEIC encoding/decoding support. It
-checks conversion, decoding, timestamps and reruns, not visual quality or metadata.
+with real FFmpeg, FFprobe, ImageMagick and ExifTool, including HEIC encoding/decoding
+support. It checks conversion, decoding, timestamps, metadata and reruns, not visual quality.
+Stale EXIF/XMP geometry is asserted as a [known ImageMagick limitation](tests/fixtures/README.md#known-auto-orientation-behavior), not repaired.
 GitHub Actions runs both suites in separate jobs on pushes and pull requests.
 
 # Decisions

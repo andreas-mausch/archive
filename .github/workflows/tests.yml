@@ -30,6 +30,6 @@ jobs:
       - name: Install media tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ffmpeg imagemagick libheif-plugin-x265 libheif-plugin-libde265
+          sudo apt-get install -y --no-install-recommends ffmpeg imagemagick libheif-plugin-x265 libheif-plugin-libde265 libimage-exiftool-perl
       - name: Run integration tests
         run: bash tests/integration-test.sh
