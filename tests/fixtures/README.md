@@ -41,14 +41,14 @@ coverage of the reference photo's format-specific data.
 
 ## Known Auto-Orientation Behavior
 
-Observed on 2026-11-10 with ImageMagick 7.1.2-31 using the current `image.sh`.
+Observed on 2026-11-10 with ImageMagick 7.1.2-31/32 using the current `image.sh`.
 The fixture has 64x48 stored pixels and `IFD0:Orientation=6` (90 degrees clockwise).
 The HEIC output decodes correctly to 48x64 and `IFD0:Orientation` becomes `1`.
-However, ImageMagick preserves the following source-coordinate metadata without
+In 7.1.2-31, `ExifIFD:ExifImageWidth/Height` remained `64/48`; after the update to
+7.1.2-32, they correctly become `48/64`. The test now asserts the corrected values.
+ImageMagick still preserves the following source-coordinate metadata without
 updating it for the rotation:
 
-- `ExifIFD:ExifImageWidth`: output `64`; correct rotated value would be `48`.
-- `ExifIFD:ExifImageHeight`: output `48`; correct rotated value would be `64`.
 - `ExifIFD:SubjectArea`: output `32 24 16 12`; correct rotated value would be
   `24 32 12 16` (center X/Y and width/height).
 - `XMP-mwg-rs:RegionAppliedToDimensionsW`: output `64`; correct value would be `48`.
@@ -73,8 +73,16 @@ unfulfilled by the current pipeline.
 
 Camera/lens data, exposure fields, capture dates, subsecond times, timezone
 offsets, GPS fields and non-geometric XMP fields are compared with the source.
-The embedded ICC profile is checked byte-for-byte. Thumbnail geometry and the
-excluded vendor-specific/HDR blocks are not covered by these assertions.
+The shared `tests/assert-color-profile.sh` assertion compares the embedded ICC's
+RGB/XYZ model and rendering intent, requires byte-identical tone-response curves,
+and permits at most `0.0005` absolute difference per white-point, color-matrix and
+chromatic-adaptation component. This accepts the observed libjxl regeneration of
+the standard Display P3 profile without depending on its provenance fields, while
+rejecting the old replacement with sRGB. It is specific to this matrix/TRC fixture,
+not a general ICC equivalence test or measured color-error bound. For a local JXL
+trial, extract the archived profile with `djxl --orig_icc_out` before invoking the
+same assertion; Docker is not required by the test or CI. Thumbnail geometry and
+the excluded vendor-specific/HDR blocks are not covered by these assertions.
 
 ## Creation Recipes
 

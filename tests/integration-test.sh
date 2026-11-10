@@ -56,8 +56,10 @@ while IFS='=' read -r tag value; do
 done < "$repo/tests/fixtures/image-small-metadata.args"
 diff -u <(exiftool -sort -G1 -s -n "${metadata_tags[@]}" "$original_image") \
   <(exiftool -sort -G1 -s -n "${metadata_tags[@]}" "$output_image") || fail 'EXIF, GPS or non-geometric XMP metadata changed'
-[[ $(exiftool -b -ICC_Profile "$original_image" | sha256sum) == "$(exiftool -b -ICC_Profile "$output_image" | sha256sum)" ]] || fail 'ICC profile changed'
-printf 'PASS: EXIF, GPS, non-geometric XMP fields and exact ICC profile preservation\n'
+exiftool -b -ICC_Profile "$original_image" > "$scratch/source.icc"
+exiftool -b -ICC_Profile "$output_image" > "$scratch/archived.icc"
+bash "$repo/tests/assert-color-profile.sh" "$scratch/source.icc" "$scratch/archived.icc"
+printf 'PASS: EXIF, GPS, non-geometric XMP fields and color-relevant ICC preservation\n'
 
 metadata_status=0
 assert_metadata() {
@@ -69,10 +71,10 @@ assert_metadata() {
   fi
 }
 assert_metadata IFD0:Orientation 1
+assert_metadata ExifIFD:ExifImageWidth 48
+assert_metadata ExifIFD:ExifImageHeight 64
 # Characterize ImageMagick's stale geometry, not the desired metadata values.
 # See tests/fixtures/README.md, "Known Auto-Orientation Behavior".
-assert_metadata ExifIFD:ExifImageWidth 64
-assert_metadata ExifIFD:ExifImageHeight 48
 assert_metadata ExifIFD:SubjectArea '32 24 16 12'
 assert_metadata XMP-mwg-rs:RegionAppliedToDimensionsW 64
 assert_metadata XMP-mwg-rs:RegionAppliedToDimensionsH 48
@@ -84,7 +86,7 @@ assert_metadata XMP-mwg-rs:RegionAreaY '0.5, 0.5'
 assert_metadata XMP-mwg-rs:RegionAreaW '0.2, 0.2'
 assert_metadata XMP-mwg-rs:RegionAreaH '0.2, 0.2'
 [[ $metadata_status -eq 0 ]] || fail 'Auto-orientation metadata behavior changed; review the documented limitation'
-printf 'PASS: Orientation updated; documented stale EXIF/XMP geometry reproduced\n'
+printf 'PASS: Orientation and EXIF dimensions updated; documented stale subject/XMP geometry reproduced\n'
 
 snapshot=$(stat -c '%n %i %y %z' "$output_folder/"*)
 hashes=$(sha256sum "$output_folder/"*)

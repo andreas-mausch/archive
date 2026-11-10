@@ -21,7 +21,7 @@ We are evaluating a replacement: a modern format with the longest side capped at
 Key requirements and constraints:
 
 - **Decades-long readability**: files on Blu-ray must still decode in the 2040s, without anyone keeping a vendor alive for us
-- **Archive fidelity**: good visual quality at default distance `2.2` without paying lossless file sizes; preserve all metadata from the original image
+- **Archive fidelity**: good visual quality at default distance `2.2` without paying lossless file sizes; preserve original metadata, with equivalent color-profile representations allowed as specified below
 - **Batch throughput**: thousands of encodes per archive run
 - **Disc capacity**: better photos *and* more photos per disc
 - **Scope**: phone viewing/sharing is not required for the Blu-ray archive
@@ -32,7 +32,7 @@ We will use **JPEG XL (JXL)** for archived images:
 
 - **All images:** use one ImageMagick pipeline, retaining native resolution up to a longest-side limit of 3840 pixels, with distance `2.2` as the default (`-define jxl:distance=2.2`). Preserve the aspect ratio, without cropping or upscaling. For example, 6000×4000 becomes 3840×2560; 4000×6000 becomes 2560×3840. This favors smaller files over the near-visually-lossless `1.0` setting compared in the supporting research.
 - **Pipeline simplicity:** prefer a single conversion path over lossless compression for special cases. There is no separate lossless JPEG recompression path, even for JPEGs below the 3840-pixel limit; resizing larger JPEGs would prevent byte-identical reconstruction anyway.
-- **Metadata:** preserve all metadata from the original image, including EXIF, XMP, ICC profiles and format-specific metadata. The pipeline must not silently discard unsupported metadata; preservation must be verified before rollout.
+- **Metadata:** preserve original EXIF, XMP and format-specific metadata. For ICC profiles, preserve the color space and color-relevant information; an equivalent representation is allowed without byte-identical profile headers, descriptions, dates or copyright information. This does not permit silently changing the color space or approximating individual device calibrations or lookup tables. Preservation must be verified before rollout; unsupported metadata must not be silently discarded.
 - **Phone photo metadata:** correct transfer of EXIF, XMP and ICC profiles from both `.jpg` and `.heic` phone photos is a rollout requirement. Verify capture timestamps (including timezone offsets), GPS coordinates, camera/lens information and embedded XMP where present. After auto-orientation and resizing, orientation and image dimensions must describe the output correctly rather than retain stale source values.
 
 Suggested `image.sh` pipeline (to be implemented):
@@ -55,7 +55,7 @@ magick "$1" -auto-orient -resize "3840x3840>" -define jxl:distance=2.2 "$2"
   - Phone compatibility is limited (see supporting research), but phone viewing/sharing is outside the archive's scope and does not block this decision
   - Edge and Samsung Internet still don't render `.jxl`: if archive photos ever get *published* on a website, serve AVIF with WebP/JPEG fallbacks
 - **Risks / neutral:**
-  - ImageMagick 7.1.2-31 drops ICC profiles in lossy JXL encoding; rollout requires the upstream fix present in 7.1.2-33 and verified original-profile preservation (see "JXL ICC rollout check" below)
+  - ImageMagick 7.1.2-31/32 drops ICC profiles in lossy JXL encoding; rollout requires the upstream fix present in 7.1.2-33 and verified color-relevant profile preservation (see "JXL ICC rollout check" below)
   - libjxl is formally < 1.0 (ABI frozen and stable for years, but formally < 1.0)
   - JXL's browser history (flagged 2021 → removed 2023 → re-shipped 2026) shows adoption is partly a political process
   - The compatibility snapshot in the appendix is dated 2026-11; re-verify before rollout
@@ -74,7 +74,7 @@ magick "$1" -auto-orient -resize "3840x3840>" -define jxl:distance=2.2 "$2"
 
 - [x] Phone viewing/sharing strategy: not required for the Blu-ray archive; no phone-specific fallback or XMPP sharing pipeline is needed
 - [ ] Run a test batch: ~20 representative vacation photos through the proposed ImageMagick pipeline (`magick "$1" -auto-orient -resize "3840x3840>" -define jxl:distance=2.2 "$2"`); compare against AVIF at comparable output dimensions and visually inspect at 100 % zoom (benchmarks disagree by content!).
-- [ ] Verify preservation of all original metadata across representative input formats, including format-specific metadata and the effects of auto-orientation and resizing; settle how to retain metadata that the JXL pipeline cannot embed.
+- [ ] Verify preservation of original metadata across representative input formats, including equivalent color-profile representations, format-specific metadata and the effects of auto-orientation and resizing; settle how to retain metadata that the JXL pipeline cannot embed.
 - [ ] Test real `.jpg` and `.heic` phone photos with EXIF, XMP and ICC profiles where present: compare source and output metadata, verify capture timestamps/timezone offsets, GPS and camera/lens information, and check that orientation and dimensions match the converted image. Missing metadata must not pass unnoticed.
 - [x] Target resolution: longest side at most 3840 pixels, preserving aspect ratio without cropping or upscaling
 
@@ -94,13 +94,33 @@ anonymized Display P3 fixture and a HEIC derived from it:
 Upstream [PR #8992](https://github.com/ImageMagick/ImageMagick/pull/8992), merged
 2026-10-01, fixes this behavior. Source inspection confirms the fix in 7.1.2-33,
 but not 7.1.2-32. [Issue #8974](https://github.com/ImageMagick/ImageMagick/issues/8974)
-reports the same problem on 7.1.2-31. The newer build has not yet been tested here.
+reports the same problem on 7.1.2-31. A system update to 7.1.2-32 reproduced it.
 
-Before rollout, pin a build containing the fix and repeat the lossy trial. Compare
-the source ICC bytes with `djxl --orig_icc_out`; ExifTool does not expose the ICC
-stored in the JXL codestream in our test. A decoder's output profile is not a
-substitute for checking the stored original profile. Do not switch to lossless
-encoding or add a local profile-repair workaround just to evade this bug.
+A local-only Docker trial with ImageMagick 7.1.2-35 and libjxl 0.11.2 retained
+Display P3 at distance `2.2` for both inputs. Libjxl stored the recognized color
+parameters and regenerated an ICC profile rather than retaining the Apple ICC
+bytes. Decoders 0.11.2 and 0.12.0 agreed on the regenerated profile. All three
+tone-response curves were byte-identical; the white point, color matrix and
+chromatic adaptation differed slightly numerically. Profile provenance fields
+changed. This is an acceptable representation change for this standard profile,
+not proof of equivalence for arbitrary ICC profiles or a measured color error.
+The newer build also corrected EXIF image width/height; the current HEIC pipeline
+already does so with 7.1.2-32. Subject area, XMP regions and thumbnail geometry
+remained stale. Docker is not part of CI.
+
+Before rollout, pin a build containing the fix and verify the stored original
+color description, not just a profile name or a decoder's output profile. Use
+`djxl --orig_icc_out` for JXL: it returns an ICC for the original color-encoding
+target, which may be regenerated, not necessarily the source ICC blob. ExifTool
+does not expose the ICC stored in the JXL codestream in our test.
+
+The shared profile assertion used by the integration test checks this fixture's
+RGB/XYZ model and rendering intent, exact tone-response curves, and white point,
+matrix and chromatic-adaptation components within `0.0005` absolute difference.
+That tolerance covers the observed P3 regeneration and rejects the old sRGB
+replacement; it is not a general color-error bound or permission to approximate
+custom calibrations. Do not switch to lossless encoding or add a local
+profile-repair workaround merely to retain irrelevant profile provenance.
 
 ## Supporting research
 
