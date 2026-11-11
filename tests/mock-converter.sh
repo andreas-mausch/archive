@@ -23,8 +23,12 @@ if [[ ${0##*/} == ffmpeg ]]; then
     *) exit 91 ;;
   esac
 else
-  source_file=${@: -2:1}
-  extension=heic
+  source_file=$1
+  [[ $2 == -auto-orient && $3 == -resize && $4 == '3840x3840>' && $5 == -define && $6 == jxl:distance=2.2 ]] || {
+    printf 'Invalid image pipeline flags\n' >&2
+    exit 90
+  }
+  extension=jxl
 fi
 [[ ${target##*/} == .archive-*.$extension ]] || {
   printf 'Invalid temporary target: %s\n' "$target" >&2

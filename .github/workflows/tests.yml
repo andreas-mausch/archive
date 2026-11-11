@@ -34,7 +34,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            ffmpeg libimage-exiftool-perl build-essential ca-certificates curl pkg-config \
+            ffmpeg libimage-exiftool-perl libjxl-tools build-essential ca-certificates curl pkg-config \
             libjxl-dev libjpeg-dev libpng-dev libheif-dev \
             libheif-plugin-x265 libheif-plugin-libde265 liblcms2-dev libxml2-dev
       - name: Cache ImageMagick binaries and libraries

@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-magick convert -auto-orient -resize "1920x1920>" "$1" "$2"
+magick "$1" -auto-orient -resize "3840x3840>" -define jxl:distance=2.2 "$2"

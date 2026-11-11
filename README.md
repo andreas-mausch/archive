@@ -9,8 +9,8 @@ In order to get a lot of data on a disc, I've decided I don't need 24 megapixel 
 So this script will re-encode your files to:
 
 - Images
-  - HEIF file format (HEIC / HEVC)
-  - Scaled to 1920x1080
+  - JPEG XL (JXL), distance 2.2
+  - Longest side at most 3840 pixels, preserving aspect ratio without upscaling
 - Videos
   - MP4 container, H.265 codec for video, AAC for audio
   - 720p
@@ -29,7 +29,7 @@ Check tools, unsupported files and output-name collisions without writing files:
 
 Checks all directories and reports all problems, returning a nonzero status if
 any are found. Media contents are not validated. Collision checks use memory for
-one directory at a time: `photo.jpg` and `photo.png` would both become `photo.heic`.
+one directory at a time: `photo.jpg` and `photo.png` would both become `photo.jxl`.
 
 Convert media and copy supported documents:
 
@@ -56,7 +56,7 @@ Run `bash tests/archive-test.sh` for mock-based regression tests. Interruption
 tests require `setsid` and GNU `env`.
 
 Run `bash tests/integration-test.sh` for the fixed inputs in [tests/fixtures/](tests/fixtures/)
-with real FFmpeg, FFprobe, ImageMagick and ExifTool, including HEIC encoding/decoding
+with real FFmpeg, FFprobe, ImageMagick, ExifTool and `djxl`, including JXL and HEIC encoding/decoding
 support. It checks conversion, decoding, timestamps, metadata and reruns, not visual quality.
 Stale EXIF/XMP geometry is asserted as a [known ImageMagick limitation](tests/fixtures/README.md#known-auto-orientation-behavior), not repaired.
 GitHub Actions runs both suites in separate jobs on pushes and pull requests,
@@ -69,5 +69,5 @@ Why the formats and pipeline above are the way they are (and what we considered 
 # Requirements
 
 - bash
-- ImageMagick 7.1.2-35 or newer, with HEIC encoding/decoding support
+- ImageMagick 7.1.2-35 or newer, with JXL encoding/decoding support
 - FFmpeg

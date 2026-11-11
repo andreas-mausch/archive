@@ -54,7 +54,7 @@ for name in 'sub folder/note.txt' photo.jpg sound.wav movie.mkv; do
 done
 run_archive || fail 'Successful archive rejected'
 check_output 'sub folder/note.txt' 'sub folder/note.txt'
-check_output photo.jpg photo.heic
+check_output photo.jpg photo.jxl
 check_output sound.wav sound.opus
 check_output movie.mkv movie.mp4
 no_temps
@@ -65,7 +65,7 @@ export MOCK_MODE=partial
 run_archive || fail 'Rerun did not skip existing outputs'
 [[ $(wc -l < "$MOCK_LOG") == "$before" ]] || fail 'Rerun invoked converters'
 check_output 'sub folder/note.txt' 'sub folder/note.txt'
-check_output photo.jpg photo.heic
+check_output photo.jpg photo.jxl
 check_output sound.wav sound.opus
 check_output movie.mkv movie.mp4
 pass 'Rerun skips existing outputs'
@@ -99,10 +99,10 @@ pass 'Empty copied originals remain valid'
 
 reset_case
 printf 'fixture\n' > "$scratch/source/photo.jpg"
-printf 'stale partial\n' > "$scratch/output/.archive-leftover.heic"
+printf 'stale partial\n' > "$scratch/output/.archive-leftover.jxl"
 run_archive || fail 'Leftover temporary file prevented restart'
-check_output photo.jpg photo.heic
-[[ $(< "$scratch/output/.archive-leftover.heic") == 'stale partial' ]] || fail 'Restart modified unrelated leftover'
+check_output photo.jpg photo.jxl
+[[ $(< "$scratch/output/.archive-leftover.jxl") == 'stale partial' ]] || fail 'Restart modified unrelated leftover'
 pass 'Leftover temporary file is ignored'
 
 reset_case
@@ -140,12 +140,12 @@ done
 pass 'Check reports all source collisions and unsupported files across directories'
 
 mkdir "$scratch/output/images"
-printf 'existing archive\n' > "$scratch/output/images/same.heic"
+printf 'existing archive\n' > "$scratch/output/images/same.jxl"
 if run_archive; then fail 'Run ignored source collisions'; fi
-[[ $(< "$scratch/output/images/same.heic") == 'existing archive' ]] || fail 'Collision changed existing output'
+[[ $(< "$scratch/output/images/same.jxl") == 'existing archive' ]] || fail 'Collision changed existing output'
 [[ ! -e $scratch/output/images/note.txt && ! -e $scratch/output/audio && ! -e $scratch/output/videos ]] || fail 'Run processed a colliding directory'
-check_output good/same.jpg good/same.heic
-check_output other/same.png other/same.heic
+check_output good/same.jpg good/same.jxl
+check_output other/same.png other/same.jxl
 [[ $(wc -l < "$MOCK_LOG") -eq 2 ]] || fail 'Run converted colliding sources or skipped good directories'
 no_temps
 pass 'Run skips colliding directories, preserves existing outputs and processes independent directories'

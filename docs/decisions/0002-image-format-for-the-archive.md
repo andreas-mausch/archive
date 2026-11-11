@@ -9,12 +9,13 @@ superseded-by: []
 # 0002: Image format for the archive
 
 > Status notes: research complete, JPEG XL chosen. Flips to **accepted** once
-> `image.sh` ships the JXL path with verified metadata preservation.
+> `image.sh` ships the JXL path with verified metadata preservation within the
+> explicitly accepted geometry limitations below.
 > Phone viewing is outside the scope of this Blu-ray archive. Acceptance owner: neonew.
 
 ## Context
 
-This repo compresses photos, videos and audio onto Blu-ray discs. The current image pipeline (this ADR supersedes it): HEIC (HEIF), with the longest side capped at 1920 pixels. That saves space but needlessly throws away detail.
+This repo compresses photos, videos and audio onto Blu-ray discs. The previous image pipeline used HEIC (HEIF), with the longest side capped at 1920 pixels. That saved space but needlessly threw away detail.
 
 We are evaluating a replacement: a modern format with the longest side capped at 3840 pixels. This is not a fixed 3840×2160 UHD frame or an 8.3 MP limit.
 
@@ -35,10 +36,10 @@ We will use **JPEG XL (JXL)** for archived images:
 - **Metadata:** preserve original EXIF, XMP and format-specific metadata. For ICC profiles, preserve the color space and color-relevant information; an equivalent representation is allowed without byte-identical profile headers, descriptions, dates or copyright information. This does not permit silently changing the color space or approximating individual device calibrations or lookup tables. Preservation must be verified before rollout; unsupported metadata must not be silently discarded.
 - **Phone photo metadata:** correct transfer of EXIF, XMP and ICC profiles from both `.jpg` and `.heic` phone photos is a rollout requirement. Verify capture timestamps (including timezone offsets), GPS coordinates, camera/lens information and embedded XMP where present. After auto-orientation and resizing, orientation and image dimensions must describe the output correctly rather than retain stale source values.
 
-Suggested `image.sh` pipeline (to be implemented):
+Implemented `image.sh` pipeline:
 
 ```sh
-# longest side <= 3840, no crop/upscaling, distance 2.2 (metadata still needs verification)
+# longest side <= 3840, no crop/upscaling, distance 2.2
 magick "$1" -auto-orient -resize "3840x3840>" -define jxl:distance=2.2 "$2"
 ```
 
@@ -111,8 +112,19 @@ remained stale. Docker is not part of CI.
 The project assumes ImageMagick 7.1.2-35 or newer; CI builds the tested 7.1.2-35
 from source without Docker. Tests require corrected EXIF dimensions rather than
 accepting older versions' stale values. No version fallback or local metadata
-repair is planned; the remaining geometry limitations still block full metadata
-compliance.
+repair is planned. On 2026-11-11, the owner accepted the remaining SubjectArea,
+XMP-region and thumbnail geometry limitations for rollout: these already exist
+in the HEIC pipeline and are not a new JXL regression. They no longer block
+rollout, but full output-consistent metadata compliance remains unfulfilled.
+Orientation, EXIF output dimensions, non-geometric metadata and color preservation
+remain requirements; this exception does not allow additional metadata loss.
+
+The implemented JXL pipeline passed local regression and integration tests on
+2026-11-11 with a source-built ImageMagick 7.1.2-35 and libjxl 0.12.0. The tests
+cover the fixed synthetic JPEG and HEIC fixtures, preserved EXIF/GPS/non-geometric XMP,
+original Display P3 color information, embedded thumbnails and corrected output
+orientation/dimensions. Representative real-phone metadata and visual-quality
+checks remain open; synthetic fixtures do not establish full format coverage.
 
 Before rollout, verify the stored original
 color description, not just a profile name or a decoder's output profile. Use

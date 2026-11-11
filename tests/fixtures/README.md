@@ -12,8 +12,9 @@ format-specific metadata.
 
 | File               | Input properties                       | Expected output                       |
 |--------------------|----------------------------------------|---------------------------------------|
-| `image-large.png`  | 6000x4000, text, 8-bit palette PNG     | HEIC, 1920x1280                       |
-| `image-small.jpg`  | 64x48 color gradient, orientation 6     | HEIC, 48x64 (rotated, no upscaling)    |
+| `image-large-png.png` | 6000x4000, text, 8-bit palette PNG | JXL, 3840x2560 |
+| `image-small-jpeg.jpg` | 64x48 color gradient, orientation 6 | JXL, 48x64 (rotated, no upscaling) |
+| `image-small-heic.heic` | 64x48 rectangle and circle, orientation 6, Display P3 | JXL, 48x64 (rotated, no upscaling) |
 | `sound.mp3`        | 440 Hz tone, 0.4 s, mono MP3 at 48 kHz | Opus; 19200 decoded samples at 48 kHz |
 | `movie.mkv`        | 128x96, 4 frames, 10 fps, H.264 + AAC  | HEVC + AAC in MP4; 4 frames at 128x96 |
 | `note.txt`         | Short ASCII text                       | Byte-identical copy                   |
@@ -45,7 +46,10 @@ Observed on 2026-11-10 with ImageMagick 7.1.2-35 using the current `image.sh`.
 CI builds this pinned version from source without Docker. Older ImageMagick
 behavior is not supported by the assertions.
 The fixture has 64x48 stored pixels and `IFD0:Orientation=6` (90 degrees clockwise).
-The HEIC output decodes correctly to 48x64 and `IFD0:Orientation` becomes `1`.
+The previous HEIC output decodes correctly to 48x64 and `IFD0:Orientation` becomes `1`.
+The JXL pipeline requires the same orientation and dimensions, with original
+color-profile verification via `djxl --orig_icc_out`. Tests use the fixed HEIC
+fixture to verify HEIC conversion without generating inputs during test runs.
 `ExifIFD:ExifImageWidth/Height` correctly become `48/64`; the test requires these
 output dimensions, with no exception for older versions retaining `64/48`.
 ImageMagick still preserves the following source-coordinate metadata without
@@ -72,6 +76,8 @@ If an upstream version fixes the remaining subject/XMP behavior, the assertions
 should fail so we can review the change and update them to the corrected values,
 rather than restore the stale metadata. The requirement for fully
 output-consistent metadata remains unfulfilled by the current pipeline.
+These pre-existing geometry limitations were explicitly accepted for JXL rollout
+on 2026-11-11; they are not permission to lose other metadata or change colors.
 
 Camera/lens data, exposure fields, capture dates, subsecond times, timezone
 offsets, GPS fields and non-geometric XMP fields are compared with the source.
@@ -98,15 +104,23 @@ magick -size 6000x4000 xc:'#e8e4dc' \
   -font /usr/share/fonts/noto/NotoSans-Regular.ttf -pointsize 240 \
   -fill '#28313b' -gravity center -annotate 0 $'archive\nlarge image\nfixture' \
   -depth 8 -define png:compression-level=9 -define png:compression-filter=5 \
-  -define png:compression-strategy=1 image-large.png
+  -define png:compression-strategy=1 image-large-png.png
 profile=$(mktemp)
 thumbnail=$(mktemp --suffix=.jpg)
-exiftool -b -ICC_Profile image-small.jpg > "$profile"
-magick -size 64x48 'gradient:#f0e4d0-#26384a' -quality 60 image-small.jpg
-magick image-small.jpg -resize 16x12 -quality 60 "$thumbnail"
+exiftool -b -ICC_Profile image-small-jpeg.jpg > "$profile"
+magick -size 64x48 'gradient:#f0e4d0-#26384a' -quality 60 image-small-jpeg.jpg
+magick image-small-jpeg.jpg -resize 16x12 -quality 60 "$thumbnail"
 exiftool -overwrite_original -@ image-small-metadata.args \
-  "-ICC_Profile<=$profile" "-ThumbnailImage<=$thumbnail" image-small.jpg
-rm -- "$profile" "$thumbnail"
+  "-ICC_Profile<=$profile" "-ThumbnailImage<=$thumbnail" image-small-jpeg.jpg
+image=$(mktemp --suffix=.png)
+magick -size 64x48 xc:'#243b53' -fill '#f6c85f' \
+  -draw 'rectangle 8,8 27,39' -fill '#6fcebd' -draw 'circle 46,24 57,24' \
+  -profile "$profile" "$image"
+magick "$image" -resize 16x12 -quality 60 "$thumbnail"
+magick "$image" -orient RightTop -quality 30 image-small-heic.heic
+exiftool -overwrite_original -@ image-small-metadata.args \
+  "-ICC_Profile<=$profile" "-ThumbnailImage<=$thumbnail" image-small-heic.heic
+rm -- "$profile" "$image" "$thumbnail"
 ffmpeg -nostdin -y -hide_banner -loglevel error -f lavfi \
   -i sine=frequency=440:sample_rate=48000:duration=0.4 \
   -c:a libmp3lame -b:a 64k sound.mp3

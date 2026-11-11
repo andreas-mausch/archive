@@ -57,7 +57,7 @@ function classifyFile {
   OUTPUT_EXTENSION=
   if [[ "${LOWERCASE_FILENAME}" =~ ^.*\.(bmp|jpg|jpeg|png|gif|heic)$ ]]; then
     CONVERTER=image.sh
-    OUTPUT_EXTENSION=heic
+    OUTPUT_EXTENSION=jxl
   elif [[ "${LOWERCASE_FILENAME}" =~ ^.*\.(mp3|m4a|opus|wav)$ ]]; then
     CONVERTER=audio.sh
     OUTPUT_EXTENSION=opus
