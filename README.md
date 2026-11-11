@@ -11,6 +11,12 @@ So this script will re-encode your files to:
 - Images
   - JPEG XL (JXL), distance 2.2
   - Longest side at most 3840 pixels, preserving aspect ratio without upscaling
+  - Ultra HDR JPEGs become SDR images: HDR gain maps are not retained in JXL,
+    so the original HDR appearance is lost even when the color profile is preserved
+    - ImageMagick 7.1.2-35 can read JPEG gain maps with libultrahdr, but its JXL
+      writer does not support transferring them. This is an upstream limitation,
+      not a missing gain-map preservation option in these scripts. Explicit
+      conversion to native HDR JXL is a separate, unverified path.
 - Videos
   - MP4 container, H.265 codec for video, AAC for audio
   - 720p

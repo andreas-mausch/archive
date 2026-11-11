@@ -8,8 +8,8 @@ Every decision that changes *how* this archive works (formats, tools, pipeline b
 
 | #   | Title                                    | Status    | Date       | Supersedes |
 |-----|------------------------------------------|-----------|------------|------------|
-| 0001 | [Initial archive formats](0001-initial-archive-formats.md) | ✅ `accepted` (recorded retroactively) | 2019-11 (rec. 2026-11-09) | none |
-| 0002 | [Image format for the archive](0002-image-format-for-the-archive.md) | 🕐 `proposed` | 2026-11-09 | ADR-0001's images part, once accepted |
+| 0001 | [Initial archive formats](0001-initial-archive-formats.md) | ⚠️ `partially-superseded` (images only) | 2019-11 (rec. 2026-11-09) | none |
+| 0002 | [Image format for the archive](0002-image-format-for-the-archive.md) | ✅ `accepted` | 2026-11-09 (accepted 2026-11-11) | ADR-0001's images part |
 
 ## Status values
 

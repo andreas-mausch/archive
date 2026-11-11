@@ -1,16 +1,16 @@
 ---
-status: proposed
+status: accepted
 date: 2026-11-09
 deciders: [neonew]
-supersedes: []         # -> [ADR-0001] (images part) once this ADR is accepted
+supersedes: [ADR-0001] # images part only
 superseded-by: []
 ---
 
 # 0002: Image format for the archive
 
-> Status notes: research complete, JPEG XL chosen. Flips to **accepted** once
-> `image.sh` ships the JXL path with verified metadata preservation within the
-> explicitly accepted geometry limitations below.
+> Accepted on 2026-11-11 by neonew. The JXL pipeline is implemented and the owner
+> confirmed testing representative photos. Automated JPEG/HEIC fixture checks
+> verify metadata and color preservation within the accepted limitations below.
 > Phone viewing is outside the scope of this Blu-ray archive. Acceptance owner: neonew.
 
 ## Context
@@ -74,9 +74,9 @@ magick "$1" -auto-orient -resize "3840x3840>" -define jxl:distance=2.2 "$2"
 ## Open questions
 
 - [x] Phone viewing/sharing strategy: not required for the Blu-ray archive; no phone-specific fallback or XMPP sharing pipeline is needed
-- [ ] Run a test batch: ~20 representative vacation photos through the proposed ImageMagick pipeline (`magick "$1" -auto-orient -resize "3840x3840>" -define jxl:distance=2.2 "$2"`); compare against AVIF at comparable output dimensions and visually inspect at 100 % zoom (benchmarks disagree by content!).
-- [ ] Verify preservation of original metadata across representative input formats, including equivalent color-profile representations, format-specific metadata and the effects of auto-orientation and resizing; settle how to retain metadata that the JXL pipeline cannot embed.
-- [ ] Test real `.jpg` and `.heic` phone photos with EXIF, XMP and ICC profiles where present: compare source and output metadata, verify capture timestamps/timezone offsets, GPS and camera/lens information, and check that orientation and dimensions match the converted image. Missing metadata must not pass unnoticed.
+- [x] Representative-photo testing: the owner confirmed on 2026-11-11 that this was already tested and approved acceptance. No batch size or AVIF comparison results were recorded.
+- [x] Verify preservation of original metadata across representative input formats, including equivalent color-profile representations, format-specific metadata and the effects of auto-orientation and resizing. The owner confirmed these checks on 2026-11-11; the known geometry limitations are accepted as documented below.
+- [x] Test real `.jpg` and `.heic` phone photos with EXIF, XMP and ICC profiles where present: compare source and output metadata, verify capture timestamps/timezone offsets, GPS and camera/lens information, and check that orientation and dimensions match the converted image. Confirmed by the owner on 2026-11-11.
 - [x] Target resolution: longest side at most 3840 pixels, preserving aspect ratio without cropping or upscaling
 
 ## JXL ICC rollout check
@@ -124,7 +124,8 @@ The implemented JXL pipeline passed local regression and integration tests on
 cover the fixed synthetic JPEG and HEIC fixtures, preserved EXIF/GPS/non-geometric XMP,
 original Display P3 color information, embedded thumbnails and corrected output
 orientation/dimensions. Representative real-phone metadata and visual-quality
-checks remain open; synthetic fixtures do not establish full format coverage.
+checks were confirmed by the owner on 2026-11-11; synthetic fixtures alone do not
+establish full format coverage.
 
 Before rollout, verify the stored original
 color description, not just a profile name or a decoder's output profile. Use
@@ -139,6 +140,65 @@ That tolerance covers the observed P3 regeneration and rejects the old sRGB
 replacement; it is not a general color-error bound or permission to approximate
 custom calibrations. Do not switch to lossless encoding or add a local
 profile-repair workaround merely to retain irrelevant profile provenance.
+
+## Real-photo metadata and Ultra HDR follow-up (2026-11-11)
+
+Two owner-provided photos were converted with the implemented distance-2.2
+pipeline and ImageMagick 7.1.2-35. They remain local test inputs, not repository
+fixtures. Size reductions include resizing and are not codec-only comparisons.
+
+- Olympus `P9163842.JPG`: 5184x3888, 9,066,684 bytes to 3840x2880,
+  345,418 bytes. The JXL decoded successfully; standard EXIF and MakerNote values
+  survived apart from updated dimensions and offsets. The source declares sRGB
+  without an embedded ICC; the original JXL color profile is sRGB. The 9,355-byte
+  EXIF thumbnail survived byte-for-byte. A separate 145,752-byte Olympus preview
+  did not survive, leaving unreadable MakerNote preview references. The owner
+  explicitly accepted loss of these redundant vendor previews and stale references;
+  this does not authorize loss of HDR gain maps, which serve a different purpose.
+- Samsung `20261111_093408.jpg`: 4000x2252, 1,597,137 bytes to 3840x2162,
+  303,490 bytes in the initial build without UHDR. The JXL decoded and passed the
+  matrix/TRC color-profile assertion: Samsung's P3 profile was represented as
+  Display P3, not replaced by sRGB. Standard EXIF survived with corrected output
+  dimensions. Samsung-specific timestamp/MCC fields and a 26,796-byte HDR gain map
+  were absent. Gain-map XMP references remained despite the missing auxiliary
+  image. ImageMagick emitted an XML parse warning while reading the source.
+
+A gain map is not a thumbnail. This Samsung JPEG contains an SDR base image plus
+an auxiliary JPEG and interpretation metadata used to reconstruct HDR. Keeping
+the base image preserves SDR display, not the original HDR appearance. Display P3
+color preservation alone does not preserve HDR luminance.
+
+Upstream distinguishes JPEG gain-map handling from gain-map output in other
+formats:
+
+- [PR #8788](https://github.com/ImageMagick/ImageMagick/pull/8788) adds preservation
+  through the UHDR coder, including supported resize/crop/rotation operations.
+- [PR #8794](https://github.com/ImageMagick/ImageMagick/pull/8794) adds automatic
+  JPEG gain-map detection and UHDR routing when the delegate is available.
+- [Issue #6377](https://github.com/ImageMagick/ImageMagick/issues/6377) is closed
+  following JPEG support; it also contains discussion of JXL gain maps.
+- Related open issues at investigation time:
+  [#8916](https://github.com/ImageMagick/ImageMagick/issues/8916) (AVIF gain maps),
+  [#8081](https://github.com/ImageMagick/ImageMagick/issues/8081) (MPF handling),
+  [#8744](https://github.com/ImageMagick/ImageMagick/issues/8744) (batch processing).
+  No open issue specifically covering JPEG gain-map preservation in JXL was found.
+
+Source inspection of 7.1.2-35 shows UHDR-dependent JPEG routing, but no gain-map
+handling in the JXL coder. Native HDR support in JXL does not imply automatic
+conversion of a JPEG gain map into HDR pixels or a JXL gain-map bundle.
+
+The local build was rebuilt with libultrahdr 2.0.2, and CI now builds the same
+pinned dependency with SHA-256 verification into the cached ImageMagick prefix.
+The delegate and UHDR read/write format are verified. Libultrahdr's optional HEIF
+support is disabled; this check concerns JPEG Ultra HDR, not HEIC gain maps.
+
+With that build, the Samsung input exposes `exif,hdrgm,icc` profiles and converts
+without the previous XML warning. JXL still has no extractable gain map, but the
+previous dangling gain-map XMP directory references are also absent. Display P3
+verification and both regression/integration suites pass. The default UHDR read
+uses the SDR transfer; enabling this delegate does not make our JXL output HDR.
+HDR preservation and treatment of Samsung-specific metadata loss need a separate
+owner decision; the accepted preview-image exception does not cover them.
 
 ## Supporting research
 

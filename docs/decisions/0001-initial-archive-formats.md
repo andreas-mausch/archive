@@ -1,9 +1,9 @@
 ---
-status: accepted
+status: partially-superseded
 date: "2019-11"        # approximate, reconstructed from first commits
 deciders: [neonew]
 supersedes: []
-superseded-by: []      # -> [ADR-0002]; then status: partially-superseded
+superseded-by: [ADR-0002] # images part only
 ---
 
 # 0001: Initial archive formats
@@ -12,8 +12,8 @@ superseded-by: []      # -> [ADR-0002]; then status: partially-superseded
 > commits and the README; this record was not written contemporaneously.
 > Decided solo; no record of external consultation.
 >
-> Images part: [ADR-0002](0002-image-format-for-the-archive.md) (proposed) will
-> supersede it once accepted; video and audio parts remain in effect.
+> Images part superseded by [ADR-0002](0002-image-format-for-the-archive.md)
+> on 2026-11-11; video and audio parts remain in effect.
 
 ## Context
 
