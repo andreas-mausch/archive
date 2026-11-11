@@ -41,11 +41,13 @@ coverage of the reference photo's format-specific data.
 
 ## Known Auto-Orientation Behavior
 
-Observed on 2026-11-10 with ImageMagick 7.1.2-31/32 using the current `image.sh`.
+Observed on 2026-11-10 with ImageMagick 7.1.2-35 using the current `image.sh`.
+CI builds this pinned version from source without Docker. Older ImageMagick
+behavior is not supported by the assertions.
 The fixture has 64x48 stored pixels and `IFD0:Orientation=6` (90 degrees clockwise).
 The HEIC output decodes correctly to 48x64 and `IFD0:Orientation` becomes `1`.
-In 7.1.2-31, `ExifIFD:ExifImageWidth/Height` remained `64/48`; after the update to
-7.1.2-32, they correctly become `48/64`. The test now asserts the corrected values.
+`ExifIFD:ExifImageWidth/Height` correctly become `48/64`; the test requires these
+output dimensions, with no exception for older versions retaining `64/48`.
 ImageMagick still preserves the following source-coordinate metadata without
 updating it for the rotation:
 
@@ -66,10 +68,10 @@ stays `pixel`, and `RegionType` stays `Face, Face`. These values are also assert
 The integration test explicitly asserts the observed stale values to characterize
 this known limitation. Passing these assertions does **not** mean the geometry is
 correct. This project does not implement its own EXIF/XMP coordinate repair.
-If an upstream version fixes the behavior, the assertions should fail so we can
-review the change and update them to the corrected values, rather than restore
-the stale metadata. The requirement for fully output-consistent metadata remains
-unfulfilled by the current pipeline.
+If an upstream version fixes the remaining subject/XMP behavior, the assertions
+should fail so we can review the change and update them to the corrected values,
+rather than restore the stale metadata. The requirement for fully
+output-consistent metadata remains unfulfilled by the current pipeline.
 
 Camera/lens data, exposure fields, capture dates, subsecond times, timezone
 offsets, GPS fields and non-geometric XMP fields are compared with the source.

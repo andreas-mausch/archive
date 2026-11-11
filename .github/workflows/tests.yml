@@ -24,12 +24,42 @@ jobs:
 
   integration:
     runs-on: ubuntu-26.04
-    timeout-minutes: 10
+    timeout-minutes: 15
+    env:
+      IMAGEMAGICK_VERSION: 7.1.2-35
+      IMAGEMAGICK_SHA256: 40b6fefa88fe16ca5a4b3d3db5133eaebfb0157f21f98530bde8aec5dd5b0776
     steps:
       - uses: actions/checkout@v7
       - name: Install media tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ffmpeg imagemagick libheif-plugin-x265 libheif-plugin-libde265 libimage-exiftool-perl
+          sudo apt-get install -y --no-install-recommends \
+            ffmpeg libimage-exiftool-perl build-essential ca-certificates curl pkg-config \
+            libjxl-dev libjpeg-dev libpng-dev libheif-dev \
+            libheif-plugin-x265 libheif-plugin-libde265 liblcms2-dev libxml2-dev
+      - name: Build pinned ImageMagick
+        run: |
+          build_dir=$(mktemp -d)
+          curl --fail --location --retry 3 \
+            "https://github.com/ImageMagick/ImageMagick/archive/refs/tags/${IMAGEMAGICK_VERSION}.tar.gz" \
+            -o "$build_dir/imagemagick.tar.gz"
+          printf '%s  %s\n' "$IMAGEMAGICK_SHA256" "$build_dir/imagemagick.tar.gz" | sha256sum --check --strict
+          tar -xzf "$build_dir/imagemagick.tar.gz" -C "$build_dir"
+          cd "$build_dir/ImageMagick-${IMAGEMAGICK_VERSION}"
+          ./configure --prefix=/usr/local --disable-static \
+            --without-magick-plus-plus --without-perl --without-x \
+            --with-jxl=yes --with-heic=yes --with-jpeg=yes --with-png=yes \
+            --with-lcms=yes --with-xml=yes
+          make -j"$(nproc)"
+          sudo make install
+          sudo ldconfig
+      - name: Verify pinned ImageMagick and required formats
+        run: |
+          magick -version
+          magick -version | grep -F "ImageMagick ${IMAGEMAGICK_VERSION} "
+          formats=$(magick -list format)
+          for format in HEIC JPEG JXL PNG; do
+            grep -E "^[[:space:]]*${format}[*]?[[:space:]]+[^[:space:]]+[[:space:]]+rw" <<< "$formats"
+          done
       - name: Run integration tests
         run: bash tests/integration-test.sh

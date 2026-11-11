@@ -108,7 +108,13 @@ The newer build also corrected EXIF image width/height; the current HEIC pipelin
 already does so with 7.1.2-32. Subject area, XMP regions and thumbnail geometry
 remained stale. Docker is not part of CI.
 
-Before rollout, pin a build containing the fix and verify the stored original
+The project assumes ImageMagick 7.1.2-35 or newer; CI builds the tested 7.1.2-35
+from source without Docker. Tests require corrected EXIF dimensions rather than
+accepting older versions' stale values. No version fallback or local metadata
+repair is planned; the remaining geometry limitations still block full metadata
+compliance.
+
+Before rollout, verify the stored original
 color description, not just a profile name or a decoder's output profile. Use
 `djxl --orig_icc_out` for JXL: it returns an ICC for the original color-encoding
 target, which may be regenerated, not necessarily the source ICC blob. ExifTool

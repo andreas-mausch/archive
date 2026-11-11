@@ -59,7 +59,8 @@ Run `bash tests/integration-test.sh` for the fixed inputs in [tests/fixtures/](t
 with real FFmpeg, FFprobe, ImageMagick and ExifTool, including HEIC encoding/decoding
 support. It checks conversion, decoding, timestamps, metadata and reruns, not visual quality.
 Stale EXIF/XMP geometry is asserted as a [known ImageMagick limitation](tests/fixtures/README.md#known-auto-orientation-behavior), not repaired.
-GitHub Actions runs both suites in separate jobs on pushes and pull requests.
+GitHub Actions runs both suites in separate jobs on pushes and pull requests,
+building the tested ImageMagick 7.1.2-35 from source without Docker.
 
 # Decisions
 
@@ -68,5 +69,5 @@ Why the formats and pipeline above are the way they are (and what we considered 
 # Requirements
 
 - bash
-- ImageMagick
+- ImageMagick 7.1.2-35 or newer, with HEIC encoding/decoding support
 - FFmpeg
