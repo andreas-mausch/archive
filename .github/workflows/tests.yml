@@ -37,7 +37,14 @@ jobs:
             ffmpeg libimage-exiftool-perl build-essential ca-certificates curl pkg-config \
             libjxl-dev libjpeg-dev libpng-dev libheif-dev \
             libheif-plugin-x265 libheif-plugin-libde265 liblcms2-dev libxml2-dev
+      - name: Cache ImageMagick binaries and libraries
+        id: imagemagick-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/.local/imagemagick
+          key: imagemagick-${{ runner.os }}-${{ runner.arch }}-ubuntu-26.04-${{ env.IMAGEMAGICK_VERSION }}-${{ env.IMAGEMAGICK_SHA256 }}-${{ hashFiles('.github/workflows/tests.yml') }}
       - name: Build pinned ImageMagick
+        if: steps.imagemagick-cache.outputs.cache-hit != 'true'
         run: |
           build_dir=$(mktemp -d)
           curl --fail --location --retry 3 \
@@ -46,13 +53,16 @@ jobs:
           printf '%s  %s\n' "$IMAGEMAGICK_SHA256" "$build_dir/imagemagick.tar.gz" | sha256sum --check --strict
           tar -xzf "$build_dir/imagemagick.tar.gz" -C "$build_dir"
           cd "$build_dir/ImageMagick-${IMAGEMAGICK_VERSION}"
-          ./configure --prefix=/usr/local --disable-static \
+          ./configure --prefix="$HOME/.local/imagemagick" --disable-static \
             --without-magick-plus-plus --without-perl --without-x \
             --with-jxl=yes --with-heic=yes --with-jpeg=yes --with-png=yes \
             --with-lcms=yes --with-xml=yes
           make -j"$(nproc)"
-          sudo make install
-          sudo ldconfig
+          make install
+      - name: Activate ImageMagick installation
+        run: |
+          echo "$HOME/.local/imagemagick/bin" >> "$GITHUB_PATH"
+          echo "LD_LIBRARY_PATH=$HOME/.local/imagemagick/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
       - name: Verify pinned ImageMagick and required formats
         run: |
           magick -version
