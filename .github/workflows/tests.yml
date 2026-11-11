@@ -69,7 +69,10 @@ jobs:
           magick -version | grep -F "ImageMagick ${IMAGEMAGICK_VERSION} "
           formats=$(magick -list format)
           for format in HEIC JPEG JXL PNG; do
-            grep -E "^[[:space:]]*${format}[*]?[[:space:]]+[^[:space:]]+[[:space:]]+rw" <<< "$formats"
+            grep -E "^[[:space:]]*${format}[*]?[[:space:]]+([^[:space:]]+[[:space:]]+)?rw[+-][[:space:]]" <<< "$formats" || {
+              printf 'Missing read/write support for %s\n%s\n' "$format" "$formats" >&2
+              exit 1
+            }
           done
       - name: Run integration tests
         run: bash tests/integration-test.sh
