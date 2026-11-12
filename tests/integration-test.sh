@@ -9,6 +9,8 @@ ffmpeg -version
 magick -version
 exiftool -ver
 
+bash "$repo/tests/video-test.sh"
+
 scratch=$(mktemp -d)
 trap 'rm -rf -- "$scratch"' EXIT
 trap 'exit 130' INT
@@ -27,8 +29,9 @@ bash "$repo/archive.sh" run "$source_folder" "$output_folder"
 
 [[ $(magick "$output_folder/image-large-png.jxl" -format '%m %w %h' info:) == 'JXL 3840 2560' ]] || fail 'Wrong PNG conversion format or dimensions'
 [[ $(magick "$output_folder/image-small-jpeg.jxl" -format '%m %w %h' info:) == 'JXL 48 64' ]] || fail 'Small JPEG was not auto-oriented without upscaling'
-[[ $(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 "$output_folder/movie.mp4") == 'hevc,128,96' ]] || fail 'Wrong video codec or dimensions'
-[[ $(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 "$output_folder/movie.mp4") == aac ]] || fail 'Wrong video audio codec'
+[[ $(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height -of csv=p=0 "$output_folder/movie.mp4") == 'av1,128,96' ]] || fail 'Wrong video codec or dimensions'
+[[ $(ffprobe -v error -select_streams v:0 -show_entries stream=pix_fmt -of csv=p=0 "$output_folder/movie.mp4") == yuv420p ]] || fail 'Wrong video pixel format'
+[[ $(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 "$output_folder/movie.mp4") == opus ]] || fail 'Wrong video audio codec'
 [[ $(ffprobe -v error -count_frames -select_streams v:0 -show_entries stream=nb_read_frames -of csv=p=0 "$output_folder/movie.mp4") == 4 ]] || fail 'Incomplete video'
 ffmpeg -nostdin -hide_banner -loglevel error -xerror -i "$output_folder/movie.mp4" -f null -
 [[ $(ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of csv=p=0 "$output_folder/sound.opus") == opus ]] || fail 'Wrong audio codec'

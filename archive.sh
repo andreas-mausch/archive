@@ -13,6 +13,11 @@ if ! [ -x "$(command -v ffmpeg)" ]; then
   exit 1
 fi
 
+if ! [ -x "$(command -v ffprobe)" ]; then
+  echo "Error: ffprobe is not installed." >&2
+  exit 1
+fi
+
 if ! [ -x "$(command -v magick)" ]; then
   echo "Error: magick is not installed." >&2
   exit 1
@@ -91,6 +96,11 @@ function checkDirectory {
           STATUS=1
         fi
         continue
+      fi
+      if [[ $COMMAND == check && $CONVERTER == video.sh ]]; then
+        if ! bash "$ARCHIVE_SCRIPT_DIRECTORY/video-check.sh" "$FILENAME"; then
+          STATUS=1
+        fi
       fi
       TARGET="${FILENAME%.*}.${OUTPUT_EXTENSION}"
       if [[ -n "${SOURCES_BY_TARGET[${TARGET}]+exists}" ]]; then

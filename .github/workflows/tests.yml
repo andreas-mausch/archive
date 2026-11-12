@@ -15,7 +15,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Check Bash syntax
-        run: bash -n archive.sh audio.sh copy.sh image.sh video.sh tests/archive-test.sh tests/mock-converter.sh tests/integration-test.sh
+        run: bash -n archive.sh audio.sh copy.sh image.sh video.sh video-check.sh tests/archive-test.sh tests/mock-converter.sh tests/integration-test.sh tests/video-test.sh
       - name: Run regression tests
         run: |
           command -v setsid

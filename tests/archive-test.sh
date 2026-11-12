@@ -19,6 +19,7 @@ mkdir "$scratch/bin"
 cp "$repo/tests/mock-converter.sh" "$scratch/bin/ffmpeg"
 chmod +x "$scratch/bin/ffmpeg"
 ln -s ffmpeg "$scratch/bin/magick"
+ln -s ffmpeg "$scratch/bin/ffprobe"
 export PATH="$scratch/bin:$PATH"
 export MOCK_LOG="$scratch/converters.log"
 export MOCK_MARKER="$scratch/ready"
@@ -123,6 +124,19 @@ log=$(< "$scratch/run.log")
 pass 'Check reports unsupported files without converting or writing outputs'
 
 reset_case
+printf 'fixture\n' > "$scratch/source/movie.mkv"
+export MOCK_MIXED=true
+if bash "$repo/archive.sh" check "$scratch/source" > "$scratch/run.log" 2>&1; then
+  fail 'Mixed video passed check'
+fi
+grep -q 'mixed video color properties are unsupported' "$scratch/run.log" || fail 'Missing mixed-video error'
+[[ ! -s $MOCK_LOG ]] || fail 'Mixed-video check invoked a converter'
+run_archive || fail 'Run performed the mixed-video check'
+check_output movie.mkv movie.mp4
+unset MOCK_MIXED
+pass 'Mixed-video sampling runs only in check, not run'
+
+reset_case
 mkdir "$scratch/source/images" "$scratch/source/audio" "$scratch/source/videos" "$scratch/source/good" "$scratch/source/other"
 colliding=(images/same.JpG images/same.png audio/same.mp3 audio/same.wav videos/same.mkv videos/same.mp4)
 for name in "${colliding[@]}" images/note.txt images/unknown.file videos/no-extension good/same.jpg other/same.png; do
@@ -170,11 +184,12 @@ done
 pass 'Invalid commands and argument counts return usage status'
 
 bash_path=$(command -v bash)
-for missing in ffmpeg magick; do
+for missing in ffmpeg ffprobe magick; do
   tools="$scratch/without-$missing"
   mkdir "$tools"
-  if [[ $missing == ffmpeg ]]; then available=magick; else available=ffmpeg; fi
-  ln -s "$scratch/bin/$available" "$tools/$available"
+  for available in ffmpeg ffprobe magick; do
+    [[ $available == "$missing" ]] || ln -s "$scratch/bin/$available" "$tools/$available"
+  done
   for command in check run; do
     arguments=("$command" "$scratch/source")
     if [[ $command == run ]]; then arguments+=("$scratch/output"); fi
@@ -185,7 +200,7 @@ for missing in ffmpeg magick; do
     [[ $log == *"$missing is not installed"* ]] || fail "$command did not identify missing $missing"
   done
 done
-pass 'Check and run reject missing FFmpeg or ImageMagick'
+pass 'Check and run reject missing FFmpeg, FFprobe or ImageMagick'
 
 if command -v setsid >/dev/null && env --default-signal=INT true 2>/dev/null; then
   for signal in TERM INT; do

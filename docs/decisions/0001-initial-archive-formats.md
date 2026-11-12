@@ -3,7 +3,7 @@ status: partially-superseded
 date: "2019-11"        # approximate, reconstructed from first commits
 deciders: [neonew]
 supersedes: []
-superseded-by: [ADR-0002] # images part only
+superseded-by: [ADR-0002, ADR-0004] # images and video parts
 ---
 
 # 0001: Initial archive formats
@@ -13,7 +13,9 @@ superseded-by: [ADR-0002] # images part only
 > Decided solo; no record of external consultation.
 >
 > Images part superseded by [ADR-0002](0002-image-format-for-the-archive.md)
-> on 2026-11-11; video and audio parts remain in effect.
+> on 2026-11-11. Video part superseded by
+> [ADR-0004](0004-video-format-for-the-archive.md) on 2026-11-11;
+> standalone audio part remains in effect.
 
 ## Context
 

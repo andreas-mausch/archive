@@ -18,9 +18,15 @@ So this script will re-encode your files to:
       not a missing gain-map preservation option in these scripts. Explicit
       conversion to native HDR JXL is a separate, unverified path.
 - Videos
-  - MP4 container, H.265 codec for video, AAC for audio
+  - MP4 container, AV1 video (SVT-AV1), Opus audio
   - 720p
-  - CRF 28 (or QP 30 with hardware acceleration) for video, 96 kbps for audio
+  - Preset 6, CRF 32, 8-bit YUV 4:2:0 for video; 96 kbps for audio
+  - PQ/HLG HDR videos are tone-mapped to SDR BT.709 (Mobius); SDR skips tone mapping
+  - HDR detection requires correct transfer-function tags; untagged HDR is not detected
+  - Mixed color properties (including HDR/SDR) are unsupported. `check` compares
+    up to 30 random decoded frames, including known/unknown differences; this
+    reads the entire video but is still only a sample, not a guarantee.
+    `run` does not perform this check and uses the first decoded frame's tags.
 - Audio files
   - Opus file format
   - 96 kbps
@@ -61,6 +67,10 @@ Keep sources unchanged and avoid concurrent runs against the same destination.
 Run `bash tests/archive-test.sh` for mock-based regression tests. Interruption
 tests require `setsid` and GNU `env`.
 
+Run `bash tests/video-test.sh` for synthetic SDR/PQ/HLG video conversion and
+decoding checks (also included in the integration suite). These verify formats
+and color tags, not visual tone-mapping quality.
+
 Run `bash tests/integration-test.sh` for the fixed inputs in [tests/fixtures/](tests/fixtures/)
 with real FFmpeg, FFprobe, ImageMagick, ExifTool and `djxl`, including JXL and HEIC encoding/decoding
 support. It checks conversion, decoding, timestamps, metadata and reruns, not visual quality.
@@ -76,4 +86,4 @@ Why the formats and pipeline above are the way they are (and what we considered 
 
 - bash
 - ImageMagick 7.1.2-35 or newer, with JXL encoding/decoding support
-- FFmpeg
+- FFmpeg and FFprobe, with `libsvtav1` and `libopus` encoders and `zscale`/`tonemap` filters
